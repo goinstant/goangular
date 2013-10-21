@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html ng-app="ourCoolApp">
+  <head>
+    <title>GoInstant GoAngular Component Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- CONFIG -->
+    <script src="../config/config.js"></script>
+
+    <!-- Platform -->
+    <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
+
+    <!-- Angular -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.js"></script>
+
+    <!-- jQuery & Bootstrap -->
+    <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="http://codeorigin.jquery.com/jquery-2.0.3.min.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+
+    <!-- GoAngular -->
+    <script src="../build/build.js"></script>
+
+    <!-- Example specific -->
+    <script src="./js/example.js"></script>
+
+    <!-- Inline styles for the win -->
+    <style>
+      .container {
+        margin-top: 50px;
+      }
+
+      #killTheGong {
+        margin-left: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" ng-controller="sweetController">
+      <h1>GoAngular Todo</h1>
+      <br>
+      <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
+      <div class="row">
+        <div class="col-lg-6">
+          <div class="input-group">
+            <input ng-model="newTodo" type="text" class="form-control">
+            <span class="input-group-btn">
+              <button ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
+            </span>
+          </div><!-- /input-group -->
+        </div><!-- /.col-lg-6 -->
+        </div><!-- /.row -->
+        <!-- <p>{{ text }}</p> -->
+        <br>
+        <ul class="list-group">
+          <li class="list-group-item" ng-repeat="todo in todos">{{todo}}&nbsp;<button ng-click="removeTodo($index)" class="pull-right btn btn-xs btn-danger">x</button></li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

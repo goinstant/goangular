@@ -1,0 +1,27 @@
+{
+  "name": "goangular",
+  "repo": "goinstant/goangular",
+  "description": "AngularJS binding for GoInstant",
+  "version": "1.0.0",
+  "keywords": ["AngularJS", "GoAngular", "realtime", "angular", "sync"],
+  "dependencies": {
+    "component/emitter": "1.0.1",
+    "caolan/async": "c99537ae4837f12e918959c8bd1e70e6b1730f6e",
+    "lodash/lodash": "2.1.0"
+  },
+  "development": {
+    "component/jquery": "*"
+  },
+  "main": "index.js",
+  "scripts": [
+    "index.js",
+    "lib/safe_apply.js",
+    "lib/goinstant_provider.js",
+    "lib/go_angular_factory.js",
+    "lib/go_angular.js",
+    "lib/scope_scrubber.js",
+    "lib/model_binder.js",
+    "lib/bounce_protection.js",
+    "lib/errors.js"
+  ]
+}

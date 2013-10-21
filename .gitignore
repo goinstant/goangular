@@ -1,0 +1,9 @@
+components
+node_modules
+config/config.js
+build
+sauce_connect.log
+
+*.swp
+*.swo
+*.swn

@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>GoAngular - Test Suite</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
+    <link rel="stylesheet" href="../build/build.css" />
+    <script src="../build/build.js"></script>
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="../node_modules/sinon/pkg/sinon.js"></script>
+    <script src="../node_modules/sinon/pkg/sinon-ie.js"></script>
+    <script src="../node_modules/lodash/dist/lodash.js"></script>
+    <script src="../node_modules/gi-assert/index.js"></script>
+    <script src="../node_modules/mocha/mocha.js"></script>
+
+    <script>
+      mocha.setup('bdd');
+    </script>
+
+    <script src="../test/index.js"></script>
+
+    <script>
+      window.onload = function() {
+        mocha.run();
+      };
+    </script>
+  </body>
+</html>

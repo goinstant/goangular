@@ -1,4 +1,4 @@
-[![Build Status](https://magnum.travis-ci.com/goinstant/goangular.png?token=Fu8YhdpouoYjxK6Dqepx&branch=v1.0.0)](https://magnum.travis-ci.com/goinstant/goangular)
+[![Build Status](https://travis-ci.org/goinstant/goangular.png)](https://travis-ci.org/goinstant/goangular)
 
 [![GoAngular](https://developers.goinstant.com/beta/static/images/goangular/goangular_logo.png)](https://developers.goinstant.com/v1/GoAngular/index.html)
 

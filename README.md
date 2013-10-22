@@ -11,7 +11,8 @@ Build realtime, collaborative applications quickly and easily.
 You can learn more in our
 [tutorial](https://developers.goinstant.com/v1/GoAngular/getting_started.html),
 and
-[documentation](https://developers.goinstant.com/v1/GoAngular/index.html).
+[documentation](https://developers.goinstant.com/v1/GoAngular/index.html) or by looking under the hood
+of this [todo example](http://goangular-todo-example.herokuapp.com/).
 
 Have questions? We're on IRC. #goinstant on [Freenode](http://freenode.net/).
 

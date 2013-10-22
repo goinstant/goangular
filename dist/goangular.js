@@ -8197,15 +8197,24 @@ var platformProvider = module.exports = function() {
 
     $get: ['$q', '$rootScope',  function($q, $rootScope) {
       if (!window.goinstant) {
-        throw errors.create('platformProvider', 'MISSING_DEPENDENCY');
+        throw errors.create('goinstantProvider', 'MISSING_DEPENDENCY');
       }
 
       var deferred = $q.defer();
 
-      goinstant.connect(goOpts.url, {
-        rooms: goOpts.opts.rooms,
-        token: goOpts.opts.token
-      }, function(err, platform) {
+      var opts = {};
+
+      // Don't define a keys on opts unless its defined in the provider
+      // options. goinstant.connect will error.
+      if (goOpts.opts.rooms) {
+        opts.rooms = goOpts.opts.rooms;
+      }
+
+      if (goOpts.opts.token) {
+        opts.token = goOpts.opts.token;
+      }
+
+      goinstant.connect(goOpts.url, opts, function(err, platform) {
         if (err) {
           return deferred.reject(err);
         }

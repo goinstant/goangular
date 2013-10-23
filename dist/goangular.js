@@ -8129,7 +8129,7 @@ var safeApply = require('./safe_apply');
 
 /** @constant {Array} Whitelisted options */
 
-var OPTIONS_WL = ['rooms', 'token'];
+var OPTIONS_WL = ['rooms', 'user'];
 
 /**
  * platformProvider Service
@@ -8148,7 +8148,7 @@ var platformProvider = module.exports = function() {
      * @param{String} url - Platform connection Url
      * @param {Object} opts
      * @config {String|Array} rooms - Rooms which will be joined
-     * @config {String} [token] - Platform user JWT
+     * @config {String} [user] - Platform user JWT
      * @example
      *   angularApp.config(function(platformProvider) {
      *     platformProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
@@ -8174,7 +8174,7 @@ var platformProvider = module.exports = function() {
         throw errors.create('platformProvider', 'INVALID_ROOM');
       }
 
-      if (opts.token && !_.isString(opts.token)) {
+      if (opts.user && !_.isString(opts.user) && !_.isPlainObject(opts.user)) {
         throw errors.create('platformProvider', 'INVALID_TOKEN');
       }
 
@@ -8210,8 +8210,8 @@ var platformProvider = module.exports = function() {
         opts.rooms = goOpts.opts.rooms;
       }
 
-      if (goOpts.opts.token) {
-        opts.token = goOpts.opts.token;
+      if (goOpts.opts.user) {
+        opts.user = goOpts.opts.user;
       }
 
       goinstant.connect(goOpts.url, opts, function(err, platform) {
@@ -8966,7 +8966,7 @@ var errorMap = {
   INVALID_SCOPE: ': Scope was not found or invalid',
   INVALID_NAMESPACE: ': Namespace was not found or invalid',
   INVALID_URL: ': Connect url was not found or invalid',
-  INVALID_TOKEN: ': Token is not a valid string',
+  INVALID_TOKEN: ': User Token is not a valid string',
   INVALID_KEY: ': Key was not found or invalid',
   INVALID_INCLUDE: ': Include is not a valid array',
   INVALID_EXCLUDE: ': Include is not a valid array',

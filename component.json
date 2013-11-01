@@ -17,6 +17,7 @@
     "index.js",
     "lib/safe_apply.js",
     "lib/goinstant_provider.js",
+    "lib/go_connect.js",
     "lib/go_angular_factory.js",
     "lib/go_angular.js",
     "lib/scope_scrubber.js",

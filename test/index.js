@@ -14,7 +14,7 @@ describe('GoAngular Component', function() {
   var GoAngular = require('goangular/lib/go_angular');
   var ScopeScrubber = require('goangular/lib/scope_scrubber');
   var ModelBinder = require('goangular/lib/model_binder');
-  var platformProvider = require('goangular/lib/goinstant_provider');
+  var goConnect = require('goangular/lib/go_connect');
 
   var platform;
   var deferred;
@@ -332,18 +332,18 @@ describe('GoAngular Component', function() {
     });
   });
 
-  describe('platformProvider', function() {
+  describe('goConnect', function() {
     var opts, url, instance, provider, $get;
 
     beforeEach(function() {
       // Simulate dependency injection
-      provider = platformProvider();
+      provider = goConnect();
       $get = _.last(provider.$get);
       opts = { rooms: ['foo'] };
       url = 'bar';
     });
 
-    describe('platformProvider: Error Cases', function() {
+    describe('goConnect: Error Cases', function() {
 
       var errorCases = {
         'invalid options': {
@@ -382,12 +382,12 @@ describe('GoAngular Component', function() {
 
           assert.exception(function() {
             instance = provider.set(url, opts);
-          }, 'platformProvider' + errors[errCase.errorType]);
+          }, 'goConnect' + errors[errCase.errorType]);
         });
       });
     });
 
-    describe('platformProvider: $get', function() {
+    describe('goConnect: $get', function() {
 
       beforeEach(function() {
         provider.set(url, opts);

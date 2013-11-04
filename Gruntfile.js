@@ -63,7 +63,7 @@ module.exports = function(grunt) {
     },
   });
 
-  grunt.registerTask('test', ['connect', 'saucelabs-mocha']);
+  grunt.registerTask('test', ['build', 'connect', 'saucelabs-mocha']);
 
   // Jshint default task
   grunt.registerTask('build', [

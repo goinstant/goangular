@@ -362,8 +362,8 @@ describe('GoAngular Component', function() {
           url: ['foo'],
           errorType: 'INVALID_URL'
         },
-        'invalid token': {
-          opts: { key: 'token', value: ['foo'] },
+        'invalid user token': {
+          opts: { key: 'user', value: ['foo'] },
           errorType: 'INVALID_TOKEN'
         }
       };

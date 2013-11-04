@@ -1,5 +1,9 @@
 # GoAngular Changelog
 
+### v1.0.2
+
+- platformProvider now accepts a user parameter vs a token parameter
+
 ### v1.0.1
 
 - Resolving an error users encountered when attempting to connect using default `rooms` & `token` values.

@@ -18,6 +18,7 @@
     "index.js",
     "lib/safe_apply.js",
     "lib/go_connect.js",
+    "lib/go_users_factory.js",
     "lib/go_users.js",
     "lib/user_factory.js",
     "lib/user_model.js",

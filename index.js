@@ -27,7 +27,7 @@
 'use strict';
 
 var goConnect = require('./lib/go_connect');
-var goUsers = require('./lib/go_users.js');
+var goUsersFactory = require('./lib/go_users_factory.js');
 var goAngularFactory = require('./lib/go_angular_factory');
 
 /** Create AngularJS goinstant module */
@@ -40,7 +40,7 @@ goinstant.provider('goConnect', goConnect);
 
 /** Register Platform Service */
 
-goinstant.factory('goUsers', goUsers);
+goinstant.factory('goUsers', goUsersFactory);
 
 /** Register GoAngular Service */
 

@@ -67,8 +67,6 @@ goUsers
     $scope.$on('go:leave', function(event, user) {
       console.log(user);
     });
-
-    console.log(lobbyUsers.getUser('guest:ACMfZo3xSPvT4How3LNGiw'));
   });
 
   // var goAngular = new GoAngular($scope, 'sweetController');

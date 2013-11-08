@@ -417,7 +417,7 @@ describe('GoAngular Component', function() {
         assert(promise.resolve.called);
       });
 
-      ['rooms', 'token'].forEach(function(opt) {
+      _.each(['rooms', 'token'],function(opt) {
         it('does not pass the rooms key if it is not in the opts', function() {
           delete opts.rooms;
 

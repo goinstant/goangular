@@ -31,7 +31,8 @@
     "sinon": "~1.7.3",
     "wrench": "~1.5.1",
     "winston": "~0.7.2",
-    "underscore.string": "2.3.3"
+    "underscore.string": "2.3.3",
+    "q": "~0.9.7"
   },
   "goinstant": {
     "namespace": "integrations"

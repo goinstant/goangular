@@ -14,7 +14,7 @@ describe('GoAngular Component', function() {
   var GoAngular = require('goangular/lib/go_angular');
   var ScopeScrubber = require('goangular/lib/scope_scrubber');
   var ModelBinder = require('goangular/lib/model_binder');
-  var platformProvider = require('goangular/lib/goinstant_provider');
+  var goConnect = require('goangular/lib/go_connect');
 
   var platform;
   var deferred;
@@ -33,6 +33,11 @@ describe('GoAngular Component', function() {
 
     sandbox = sinon.sandbox.create();
 
+    window.goinstant = {};
+    window.goinstant.Platform = sandbox.stub();
+    window.goinstant.Platform.returns(platform);
+    window.goinstant.connect = sandbox.stub().yields().callsArg(2);
+    window.goinstant.Room = function Room() {};
 
     scopeFake = {
       foo: 'bar',
@@ -332,18 +337,18 @@ describe('GoAngular Component', function() {
     });
   });
 
-  describe('platformProvider', function() {
+  describe('goConnect', function() {
     var opts, url, instance, provider, $get;
 
     beforeEach(function() {
       // Simulate dependency injection
-      provider = platformProvider();
+      provider = goConnect();
       $get = _.last(provider.$get);
       opts = { rooms: ['foo'] };
       url = 'bar';
     });
 
-    describe('platformProvider: Error Cases', function() {
+    describe('goConnect: Error Cases', function() {
 
       var errorCases = {
         'invalid options': {
@@ -382,20 +387,15 @@ describe('GoAngular Component', function() {
 
           assert.exception(function() {
             instance = provider.set(url, opts);
-          }, 'platformProvider' + errors[errCase.errorType]);
+          }, 'goConnect' + errors[errCase.errorType]);
         });
       });
     });
 
-    describe('platformProvider: $get', function() {
+    describe('goConnect: $get', function() {
 
       beforeEach(function() {
         provider.set(url, opts);
-
-        window.goinstant = {};
-        window.goinstant.Platform = sandbox.stub();
-        window.goinstant.Platform.returns(platform);
-        window.goinstant.connect = sandbox.stub().yields().callsArg(2);
       });
 
       it('connects to GoInstant', function() {
@@ -417,7 +417,7 @@ describe('GoAngular Component', function() {
         assert(promise.resolve.called);
       });
 
-      ['rooms', 'token'].forEach(function(opt) {
+      _.each(['rooms', 'token'],function(opt) {
         it('does not pass the rooms key if it is not in the opts', function() {
           delete opts.rooms;
 

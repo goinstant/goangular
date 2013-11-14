@@ -4,6 +4,8 @@
     <title>GoInstant GoAngular Component Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <script>document.write('<script src="http://' + (location.host || 'localhost').split(':')[0] + ':35729/livereload.js?snipver=1"></' + 'script>')</script>
+
     <!-- CONFIG -->
     <script src="../config/config.js"></script>
 
@@ -11,7 +13,7 @@
     <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
 
     <!-- Angular -->
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.js"></script>
+    <script src="http://code.angularjs.org/1.2.0-rc.2/angular.js"></script>
 
     <!-- jQuery & Bootstrap -->
     <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
@@ -37,24 +39,27 @@
   </head>
   <body>
     <div class="container" ng-controller="sweetController">
-      <h1>GoAngular Todo</h1>
-      <br>
       <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
-      <div class="row">
-        <div class="col-lg-6">
+        <div class="col-md-6">
           <div class="input-group">
             <input ng-model="newTodo" type="text" class="form-control">
             <span class="input-group-btn">
               <button ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
             </span>
           </div><!-- /input-group -->
+          <br>
+          <ul class="list-group">
+            <li class="list-group-item" ng-repeat="todo in todos">{{todo}}&nbsp;<button ng-click="removeTodo($index)" class="pull-right btn btn-xs btn-danger">x</button></li>
+          </ul>
         </div><!-- /.col-lg-6 -->
-        </div><!-- /.row -->
+        <div class="col-md-6">
+          <div class="jumbotron">
+            <h1>GoAngular Todo</h1>
+            <br>
+            <h5>Current User: <input type="text" ng-model="currentUser.displayName"/></h5>
+          </div>
+        </div>
         <!-- <p>{{ text }}</p> -->
-        <br>
-        <ul class="list-group">
-          <li class="list-group-item" ng-repeat="todo in todos">{{todo}}&nbsp;<button ng-click="removeTodo($index)" class="pull-right btn btn-xs btn-danger">x</button></li>
-        </ul>
       </div>
     </div>
   </body>

@@ -20,18 +20,39 @@ ourCoolApp.config(function(goConnectProvider) {
   goConnectProvider.set(CONFIG.connectUrl);
 });
 
-ourCoolApp.controller('sweetController', function($scope, GoAngular, goUsers) {
+ourCoolApp.controller('sweetController', function($scope, GoAngular, goUsers, goConnect) {
 
 $scope.currentUser = {};
 $scope.currentUser.displayName = 'Bob';
+$scope.newTodo = '';
+$scope.todos = [];
+
+goConnect.then(function(goinstant) {
+  console.log(goinstant);
+
+  goinstant.connection.room('customRoom').join(function(err, customRoom) {
+    console.log('customRoom', customRoom);
+
+    var goAngular = new GoAngular($scope, 'sweetfdfdControfller', {
+      room: customRoom,
+      include: ['todos']
+    });
+
+    goAngular
+      .initialize()
+      .then(function() {
+        console.log('Success: scope is being synchronized');
+      }, function(err) {
+        console.error('Error', err);
+      });
+  });
+});
 
 goUsers
   .room('lobby')
   .initialize()
   .then(function(lobbyUsers) {
-    console.log(lobbyUsers);
-
-    var localUser = lobbyUsers.getSelf();
+    var localUser = lobbyUsers.self();
 
     console.log(localUser);
 
@@ -56,31 +77,18 @@ goUsers
         console.log('name', localUser.get('displayName'));
       });
 
-    angular.forEach(lobbyUsers.getUsers(), function(user) {
+    angular.forEach(lobbyUsers.users(), function(user) {
       console.log(user);
     });
 
-    $scope.$on('go:join', function(event, user) {
+    lobbyUsers.on('join', function(user) {
       console.log(user);
     });
 
-    $scope.$on('go:leave', function(event, user) {
+    lobbyUsers.on('leave', function(user) {
       console.log(user);
     });
   });
-
-  // var goAngular = new GoAngular($scope, 'sweetController');
-
-  $scope.newTodo = '';
-  $scope.todos = [];
-
-  // goAngular
-  //   .initialize()
-  //   .then(function() {
-  //     console.log('Success: scope is being synchronized');
-  //   }, function(err) {
-  //     console.error('Error', err);
-  //   });
 
   $scope.addTodo = function() {
     if ($scope.newTodo !== '') {

@@ -24,7 +24,7 @@ describe('GoUsers', function() {
     sandbox.restore();
   });
 
-  describe('Initialization', function() {
+  describe('initialization', function() {
     var $rootScope, goConnect, goinstant, room;
 
     beforeEach(function() {
@@ -57,7 +57,7 @@ describe('GoUsers', function() {
       assert.instanceOf(lobbyUsers, GoUsers);
     });
 
-    describe('Error Cases', function() {
+    describe('error cases', function() {
 
       it('throws if passed an invalid room', function() {
         var goUsers = new GoUsersFactory($rootScope, $q, goConnect);

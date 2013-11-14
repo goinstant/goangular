@@ -25,7 +25,7 @@ describe('GoUsers: User Model & Factory', function() {
     sandbox.restore();
   });
 
-  describe('userFactory#Initialization', function() {
+  describe('userFactory initialization', function() {
     var props, key, cache, $rootScope;
 
     beforeEach(function() {
@@ -44,7 +44,7 @@ describe('GoUsers: User Model & Factory', function() {
       assert.instanceOf(userFactory, UserFactory);
     });
 
-    describe('getUser', function() {
+    describe('user', function() {
       var FakeUserModel, userFactory, id;
 
       beforeEach(function() {
@@ -57,23 +57,23 @@ describe('GoUsers: User Model & Factory', function() {
       });
 
       it('creates and returns a user', function() {
-        userFactory.getUser(id);
+        userFactory.user(id);
 
         assert(FakeUserModel.calledOnce);
       });
 
-      describe('Error Cases', function() {
+      describe('error cases', function() {
 
         it('throws when passed an invalid user ID', function() {
           assert.exception(function() {
-            userFactory.getUser();
+            userFactory.user();
           }, 'goUsers' + errors.INVALID_ID);
         });
 
       });
     });
 
-    describe('getSelf', function() {
+    describe('self', function() {
       var FakeUserModel, userFactory, id;
 
       beforeEach(function() {
@@ -87,7 +87,7 @@ describe('GoUsers: User Model & Factory', function() {
       });
 
       it('returns the current user', function() {
-        userFactory.getSelf();
+        userFactory.self();
 
         assert(cache.getLocalUser.calledOnce);
         assert(FakeUserModel.calledOnce);
@@ -95,7 +95,7 @@ describe('GoUsers: User Model & Factory', function() {
 
     });
 
-    describe('getUsers', function() {
+    describe('users', function() {
       var FakeUserModel, userFactory, id;
 
       beforeEach(function() {
@@ -113,7 +113,7 @@ describe('GoUsers: User Model & Factory', function() {
       });
 
       it('returns an array of all users', function() {
-        userFactory.getUsers();
+        userFactory.users();
 
         // called once, second request should be cached
         assert(FakeUserModel.calledOnce);
@@ -122,7 +122,7 @@ describe('GoUsers: User Model & Factory', function() {
     });
   });
 
-  describe('userModel#Initalization', function() {
+  describe('userModel initalization', function() {
     var props, key, cache, $rootScope;
 
     beforeEach(function() {
@@ -160,7 +160,7 @@ describe('GoUsers: User Model & Factory', function() {
         assert(key.set.calledWith(value));
       });
 
-      describe('Error Cases', function() {
+      describe('error cases', function() {
         var validKey = 'foo';
         var validValue = 'bar';
 
@@ -211,7 +211,7 @@ describe('GoUsers: User Model & Factory', function() {
         assert(_.isNull(result));
       });
 
-      describe('Error Cases', function() {
+      describe('error cases', function() {
 
         it('throws if an invalid key is provided', function() {
           assert.exception(function() {

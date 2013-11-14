@@ -13,7 +13,7 @@
     <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
 
     <!-- Angular -->
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.js"></script>
+    <script src="http://code.angularjs.org/1.2.0-rc.2/angular.js"></script>
 
     <!-- jQuery & Bootstrap -->
     <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
@@ -47,6 +47,10 @@
               <button ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
             </span>
           </div><!-- /input-group -->
+          <br>
+          <ul class="list-group">
+            <li class="list-group-item" ng-repeat="todo in todos">{{todo}}&nbsp;<button ng-click="removeTodo($index)" class="pull-right btn btn-xs btn-danger">x</button></li>
+          </ul>
         </div><!-- /.col-lg-6 -->
         <div class="col-md-6">
           <div class="jumbotron">
@@ -56,10 +60,6 @@
           </div>
         </div>
         <!-- <p>{{ text }}</p> -->
-        <br>
-        <ul class="list-group">
-          <li class="list-group-item" ng-repeat="todo in todos">{{todo}}&nbsp;<button ng-click="removeTodo($index)" class="pull-right btn btn-xs btn-danger">x</button></li>
-        </ul>
       </div>
     </div>
   </body>

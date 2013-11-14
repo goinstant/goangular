@@ -4,7 +4,7 @@
 /**
  * @fileOverview
  *
- * This file contains an example, primarily designed for use during development
+ * This file contains an example, only designed for use during development
  */
 
 'use strict';

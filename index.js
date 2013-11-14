@@ -34,9 +34,15 @@ var goAngularFactory = require('./lib/go_angular_factory');
 
 var goinstant = angular.module('goinstant', []);
 
-/** Register Platform Service */
+/**
+ *  Register Platform Service
+ *
+ *  platformProvider is being aliased for backwards compatibility
+ *  consider it deprecated
+ */
 
 goinstant.provider('goConnect', goConnect);
+goinstant.provider('platform', goConnect);
 
 /** Register Platform Service */
 

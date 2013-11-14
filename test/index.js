@@ -33,6 +33,11 @@ describe('GoAngular Component', function() {
 
     sandbox = sinon.sandbox.create();
 
+    window.goinstant = {};
+    window.goinstant.Platform = sandbox.stub();
+    window.goinstant.Platform.returns(platform);
+    window.goinstant.connect = sandbox.stub().yields().callsArg(2);
+    window.goinstant.Room = function Room() {};
 
     scopeFake = {
       foo: 'bar',
@@ -391,11 +396,6 @@ describe('GoAngular Component', function() {
 
       beforeEach(function() {
         provider.set(url, opts);
-
-        window.goinstant = {};
-        window.goinstant.Platform = sandbox.stub();
-        window.goinstant.Platform.returns(platform);
-        window.goinstant.connect = sandbox.stub().yields().callsArg(2);
       });
 
       it('connects to GoInstant', function() {

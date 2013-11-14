@@ -11,8 +11,8 @@
  * @example
  *   var app = angular.module('app', ['goinstant']);
  *
- *   app.config(function(platformProvider) {
- *    platformProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
+ *   app.config(function(goConnectProvider) {
+ *    goConnectProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
  *   });
  *
  *   app.controller('ctrlName',
@@ -35,7 +35,7 @@ var goAngularFactory = require('./lib/go_angular_factory');
 var goinstant = angular.module('goinstant', []);
 
 /**
- *  Register Platform Service
+ *  Register goConnect Service
  *
  *  platformProvider is being aliased for backwards compatibility
  *  consider it deprecated
@@ -44,10 +44,10 @@ var goinstant = angular.module('goinstant', []);
 goinstant.provider('goConnect', goConnect);
 goinstant.provider('platform', goConnect);
 
-/** Register Platform Service */
+/** Register goUsers Factory */
 
 goinstant.factory('goUsers', goUsersFactory);
 
-/** Register GoAngular Service */
+/** Register GoAngular Factory */
 
 goinstant.factory('GoAngular', ['$q', '$parse', 'goConnect', goAngularFactory]);

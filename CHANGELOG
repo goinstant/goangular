@@ -1,8 +1,21 @@
 # GoAngular Changelog
 
+### v1.1.0
+
+- The GoUsers module has been added, providing a convenient mechanism for
+managing users & their data.
+- GoAngular's constructor now accepts a previously joined room as an option.
+This feature has been added to support applications that generate room names
+after Angular's configuration stage.
+- goinstant.connect has replaced goinstant.platform, GoAngular has been updated
+to reflect this change, the platform provider is now the goConnect provider
+though the alias will remain until Dec 15, 2013.
+- A JSHint file has been added, but is not currently being used as part of the
+automated deployment process.
+
 ### v1.0.2
 
-- platformProvider now accepts a user parameter vs a token parameter
+- platformProvider now accepts a user parameter vs a token parameter.
 
 ### v1.0.1
 

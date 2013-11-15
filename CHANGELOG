@@ -1,5 +1,9 @@
 # GoAngular Changelog
 
+### v1.1.1
+
+- Hotfix to ensure backwards compatability
+
 ### v1.1.0
 
 - The GoUsers module has been added, providing a convenient mechanism for

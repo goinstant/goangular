@@ -6,7 +6,7 @@
  * @fileOverview
  *
  * Responsible for creating the goinstant AngularJS module and registering
- * the platform provider and goAngular scope synchronization service.
+ * the goConnect provider and goAngular scope synchronization service.
  *
  * @example
  *   var app = angular.module('app', ['goinstant']);

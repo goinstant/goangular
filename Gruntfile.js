@@ -37,6 +37,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-saucelabs');
+  grunt.loadNpmTasks('grunt-conventional-changelog');
 
   grunt.initConfig({
     clean: CLEAN_DIRS,
@@ -61,6 +62,11 @@ module.exports = function(grunt) {
         }
       }
     },
+    changelog: {
+      options: {
+        dest: 'CHANGELOG.md'
+      }
+    }
   });
 
   grunt.registerTask('test', ['build', 'connect', 'saucelabs-mocha']);

@@ -43,7 +43,7 @@ module.exports = function(grunt) {
     connect: {
       server: {
         options: {
-          base: "",
+          base: '',
           port: 9999
         }
       }
@@ -51,13 +51,13 @@ module.exports = function(grunt) {
     'saucelabs-mocha': {
       all: {
         options: {
-          urls: ["http://localhost:9999/test/index.html"],
+          urls: ['http://localhost:9999/test/index.html'],
             tunnelTimeout: 5,
           build: process.env.TRAVIS_JOB_ID,
           concurrency: 8,
           browsers: BROWSERS,
-          testname: "mocha tests",
-          tags: ["master"]
+          testname: 'GoAngular Unit Tests',
+          tags: ['master', 'goangular']
         }
       }
     },

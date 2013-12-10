@@ -1,18 +1,15 @@
 /* jshint browser:true */
 
-describe('GoUsers', function() {
+describe('goConnection', function() {
 
   'use strict';
 
   var require = window.require;
   var assert = window.assert;
   var sinon = window.sinon;
-  var $q = window.Q;
 
   var _ = require('lodash');
-  var GoUsersFactory = require('goangular/lib/go_users_factory');
-  var GoUsers = require('goangular/lib/go_users');
-  var errors = require('goangular/lib/errors').errorMap;
+  var connection = require('goangular/lib/connection');
 
   var sandbox;
 

@@ -1,0 +1,242 @@
+<style type="text/css">
+  h1 {
+    text-align: center;
+  }
+
+  .header {
+    padding-bottom: 2.5em;
+    margin-bottom: 3em;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+  }
+
+  .header h2 {
+    border: 0;
+    font-weight: 600;
+    font-size: 2em;
+    margin: 0;
+    margin-top: 1em;
+    padding: 0;
+    color: #10416f;
+  }
+
+  .header h3 {
+    font-family: "proxima-nova", sans-serif;
+    color: #10416f;
+    margin: 0;
+    margin-top: .15em;
+    padding: 0;
+    font-size: 1.65em;
+  }
+
+  .header > p {
+    font-size: 1.05em;
+    font-weight: 100;
+    color: #555;
+    line-height: 1.5em;
+    margin-top: .5em;
+    margin-bottom: 2em;
+  }
+
+  .connect-block {
+    margin: 1em;
+  }
+
+    .connect-block .top {
+      padding: 1em;
+      border: 1px solid #ddd;
+      border-bottom: 0;
+      border-radius: 3px 3px 0 0;
+      background: white;
+    }
+
+      .connect-block .top h3 {
+        font-size: 1em;
+        font-weight: bold;
+        color: #222;
+      }
+      
+        .connect-block .top h3 a {
+          font-weight: normal;
+          text-decoration: underline;
+          color: #239f04;
+        }
+      
+      .connect-block .top h3 a:hover {
+        text-decoration: none;
+      }
+
+  .connect-block input[type="text"] {
+    width: 75%;
+    margin: 1em 0;
+    padding: .5em .75em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-family: "inconsolata", monospace;
+    font-size: .85em;
+    color: #666;
+    box-shadow: inset 0 1px 4px 0 rgba(0,0,0,.1);
+  }
+
+    .connect-block input[type="text"]:focus {
+      border-color: #6DA9E0;
+      outline: none;
+    }
+
+  .connect-block .bottom {
+    border: 1px solid #ddd;
+    border-top: 0;
+    background: #e3e7eb;
+    border-radius: 0 0 3px 3px;
+  }
+
+    .connect-block .bottom p {
+      margin: 0;
+      font-size: 1em;
+      font-weight: 500;
+      color: #10416f;
+    }
+
+      .connect-block .bottom a {
+        margin-left: 1em;
+      }
+  
+  .feedback-callout {
+    text-align: center;
+    margin-top: 2em;
+  }
+
+  .feedback-callout p {
+    margin: 0;
+    padding-bottom: 0;
+    padding-top: .25em;
+    font-size: .9em;
+    color: #555;
+  }
+  
+  .key-benefits {
+    *zoom: 1;
+  }
+
+  .key-benefits:before,
+  .key-benefits:after {
+    content: " ";
+    display: table;
+  }
+
+  .key-benefits:after {
+    clear: both;
+  }
+
+  .col {
+    display: block;
+    float: left;
+    width: 33%;
+    padding: 0 1em 2em;
+    text-align: center;
+  }
+
+  @media screen and (max-width: 500px) {
+    .col {
+      width: auto;
+    }
+  }
+
+  .col h3 {
+  line-height: 1.1;
+  padding-top: .75em;
+  font-size: 1.4em;
+  }
+
+  .col p {
+    font-size: .85em;
+  }
+
+  .col p a {
+    display: block;
+    font-weight: bold;
+    color: 
+  }
+
+  .github_notice {
+    display: inline-block;
+    padding: .5em 1em;
+    font-weight: 600;
+    font-size: .9em;
+    line-height: 1.25;
+    border-radius: 3px;
+    background: #D1E3F0;
+  }
+
+    .content .github_notice:hover {
+      background-color: #CAE1F1;
+      color: #1C77C1;
+    }
+
+  .github_notice span {
+    vertical-align: middle;
+  }
+
+  .github_notice .github_logo {
+    background-image: url('../static/images/github_mark_16px.png');
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    margin-right: 5px;
+    margin-top: -1px;
+  }
+
+  #twitter-widget-0 {
+    position: relative;
+    top: 6px;
+    margin-left: .5em;
+  }
+
+</style>
+<script>
+  $('#goangular').replaceWith('<h1><img src="static/images/goangular_logo.png" alt="GoAngular"/></h1>');
+</script>
+<div id="goangular-frontpage">
+  <div class="header">
+    <h2>Angular &amp; GoInstant.</h2>
+    <h3>GoAngular, a match made in heaven.</h3>
+    <p>Focus on building your Angular application, we've got your back(end).  Get up and running in minutes, without writing server-side code or configuring databases.  Just include &amp; configure GoAngular, instantiate, initialize, and your Angular application is multi-user!</p>
+    <div class="connect-block">
+      <div class="top">
+        <h3>Latest Version <a href="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js" target="_blank">Production (min +gzip 64kb)</a> | <a href="https://cdn.goinstant.net/integrations/goangular/latest/goangular.js" target="_blank">Debug</a> | <a href="https://cdn.goinstant.net/">CDN Version Listing</a></h3>
+        <input id="goangular-script" type="text" value='<script type="text/javacript" src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>'/>
+      </div>
+      <div class="bottom">
+        <p>To use GoAngular, you must be a member of GoInstant. Get started for <strong>free!</strong> <a class="button green" href="http://goinstant.com/signup" target="_blank">Sign Up</a></p>
+      </div>
+    </div>
+    <div class="feedback-callout">
+      <p>Help us make GoAngular <strong>exactly</strong> what you need by sending your feedback to <a href="mailto:mattcreager@goinstant.com">mattcreager@goinstant.com</a>.</p>
+      <p>Need help getting up and running? <a href="https://groups.google.com/forum/#!forum/goangular">Join our mailing list</a> or join us on IRC: <a href="irc://freenode/#goinstant">freenode/#goinstant</a></p>
+      <br>
+      <a target="_blank" class="github_notice" href="https://github.com/goinstant/goangular">
+        <span class="github_logo"></span>
+        <span>View code on GitHub</span>
+      </a>
+      <a href="https://twitter.com/share" class="twitter-share-button" data-text="Angular &amp; GoInstant. GoAngular, a match made in heaven." data-via="GoInstant">Tweet</a>
+      <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+    </div>
+  </div>
+  <div class="key-benefits">
+    <div class="col">
+      <img src="static/images/icon-rapid.png" alt="Rapid Development">
+      <h3>Optimized for rapid development</h3>
+      <p>Every model that can be synchronized in your controller's scope will be. <a href="concepts.html#controller">SEE MORE &raquo;</a></p>
+    </div>
+    <div class="col">
+      <img src="static/images/icon-control.png" alt="Complete Control">
+      <h3>Complete control when it matters</h3>
+      <p>Choose exactly which models are included or excluded using either ole fashioned strings or regular expressions. <a href="concepts.html#scope-filter">SEE MORE &raquo;</a></p>
+    </div>
+    <div class="col">
+      <img src="static/images/icon-sync.png" alt="Synchronize Forever">
+      <h3>Configure once, synchronize forever</h3>
+      <p>Tell GoAngular what to synchronize and regardless of when you add models to your controller, they'll be synchronized. <a href="concepts.html#scope-digest">SEE MORE &raquo;</a></p>
+    </div>
+  </div>
+</div>

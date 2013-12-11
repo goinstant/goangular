@@ -72,8 +72,8 @@ describe('GoAngular.goConnection', function() {
 
       describe('error cases', function() {
 
-        it('throws if goinstant is not availabe', function() {
-          delete window.goinstant;
+        it('throws if goinstant is not available', function() {
+          window.goinstant = null;
           goConnection.set(url, opts);
 
           assert.exception(function() {

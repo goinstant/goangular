@@ -9,7 +9,8 @@ specific scope between clients.
 
 An Angular application might contain dozens of controllers, each controller could create a new instance of GoAngular, that instance would be responsible for managing synchronization for that controller alone.
 
-*Note: You must configure your GoInstant connection with the `platform` service prior to creating a new instance of GoAngular*
+*Note: You must configure your GoInstant connection with the `goConnection`
+provider prior to creating a new instance of GoAngular*
 
 ## Methods
 

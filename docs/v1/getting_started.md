@@ -49,13 +49,13 @@ Now, we'll include our GoInstant & GoAngular libraries in the `<head>` tag of ou
 <script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>
 ```
 
-Next we'll specify the `goinstant` module as a dependency for our app and
-configure our connection with the plaform service (`platformProvider`):
+Next we'll specify the `goangular` module as a dependency for our app and
+configure our connection with the goConnection provider:
 
 ```js
-angular.module('FormSync', ['goinstant']).
-  config(function(platformProvider) {
-    platformProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+angular.module('FormSync', ['goangular'])
+  .config(function(goConnectionProvider) {
+    goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
   });
 ```
 
@@ -95,9 +95,9 @@ In only 35 lines of code we have a real-time, multi-user form!
       <p>Name is: {{ name }}</p>
     </div>
     <script>
-      angular.module('FormSync', ['goinstant']).
-        config(function(platformProvider) {
-          platformProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+      angular.module('FormSync', ['goangular'])
+        .config(function(goConnectionProvider) {
+          goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
         });
 
       function SyncCtrl($scope, GoAngular) {

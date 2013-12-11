@@ -1,7 +1,8 @@
 # goConnnection
 
-The goConnection  provider is the lowest point of access to GoInstant.  It's
-used during configuration, and as a means of accessing your GoInstant connection.
+The goConnection provider is the lowest point of access to GoInstant in GoAngular.
+It's used during configuration, and as convenient means of accessing your GoInstant
+connection!
 
 ## Table of Contents
 
@@ -9,9 +10,13 @@ used during configuration, and as a means of accessing your GoInstant connection
 2. [goConnection#set](#goconnection#set)
 3. [goConnection#ready](#goconnection#ready)
 
-## Code Example
+## Code Examples
 
 ### TL;DR Example
+
+`goConnectionProvider.set` is used just once during configuration,
+`goConnection.ready` can be used in any Angular controller or service to access
+your connection!
 
 ```js
 // Specify GoAngular as a module dependency
@@ -32,20 +37,28 @@ angular.module('yourApp', ['goangular'])
 
 ### Extended Example
 
+To use `goConnection` you must include the Angular, GoInstant, and GoAngular
+JavaScript libraries.
+
 ```js
 <!DOCTYPE html>
 <html ng-app="GoAngularExample">
   <head>
     <title>GoAngular goConnection Provider Example</title>
+    <!-- Required JavaScript libraries -->
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
     <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
     <script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>
     <script>
-      // Configure the GoInstant connection
+      // Create an Angular module and declare goangular as a dependency
       angular.module('GoAngularExample', ['goangular'])
+
+        // Configure the connection with the connect url
         .config(function(goConnectionProvider) {
           goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
         })
+
+        // Access that connection via. goConnection.ready!
         .controller('completeControl', function(goConnection) {
           goConnection.ready().then(function(connection) {
             return connection.room('a-room').join().get('room');
@@ -69,7 +82,7 @@ angular.module('yourApp', ['goangular'])
 
 ### Description
 
-Used during Angulars configuration stage to set your connection URL and options.
+Used during Angular's configuration stage to set your connection URL and options.
 
 ### Methods
 

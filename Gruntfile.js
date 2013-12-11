@@ -51,7 +51,7 @@ module.exports = function(grunt) {
     'saucelabs-mocha': {
       all: {
         options: {
-          urls: ['http://localhost:9999/test/index.html'],
+          urls: ['http://localhost:9999/tests/index.html'],
             tunnelTimeout: 5,
           build: process.env.TRAVIS_JOB_ID,
           concurrency: 8,

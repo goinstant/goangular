@@ -6,8 +6,8 @@ Cleans up event listeners and stops further synchronization.  Accepts an optiona
 
 ## Methods
 
-- ##### **goAngular.destroy()**
-- ##### **goAngular.destroy(callback(errorObject))**
+- ###### **goAngular.destroy()**
+- ###### **goAngular.destroy(callback(errorObject))**
 
 ## Parameters
 

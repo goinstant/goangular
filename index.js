@@ -28,6 +28,7 @@
 
 var connectionFactory = require('./lib/connection_factory');
 var goAngularFactory = require('./lib/go_angular_factory');
+var syncFactory = require('./lib/sync_factory');
 
 /** Create AngularJS goangular module */
 
@@ -37,9 +38,11 @@ var goangular = angular.module('goangular', []);
 
 goangular.provider('goConnection', connectionFactory);
 
+goangular.factory('goSync', ['$parse', syncFactory]);
+
 /** Register GoAngular Factory */
 
-goangular.factory('GoAngular', [
+goangular.factory('goSyncScope', [
   '$q',
   '$parse',
   'goConnection',

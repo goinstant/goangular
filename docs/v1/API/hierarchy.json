@@ -1,1 +1,1 @@
-["platform", "constructor", "initialize", "destroy"]
+["goConnection", "constructor", "initialize", "destroy"]

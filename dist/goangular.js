@@ -8028,306 +8028,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
 }.call(this));
 
 });
-require.register("goinstant-usercache/usercache.js", function(exports, require, module){
-/*jshint browser:true */
-/*global module, require */
-'use strict';
-
-/**
- * @fileOverview
- * Contains the UserCache class, which is responsible for storing all user
- * objects currently in the room.
- */
-
-var _ = require('lodash');
-var async = require('async');
-var Emitter = require('emitter');
-
-var VALID_EVENTS = ['join', 'leave', 'change'];
-
-/**
- * Instantiates the UserCache instance.
- * @constructor
- * @param {object} room
- */
-function UserCache(room) {
-  this._room = room;
-  this._users = {};
-  this._usersKeys = {};
-  this._localUserId = null;
-
-  this._emitter = new Emitter();
-
-  _.bindAll(this, [
-    '_updateUser',
-    '_handleLeaveEvent',
-    '_handleJoinEvent',
-    '_getUsers',
-    '_bindPlatformEvents',
-    '_getLocalUserId'
-  ]);
-}
-
-/**
- * Initializes the UserCache by binding to platform events.
- * @param {function} cb A callback function.
- * @return {function} A callback function.
- */
-UserCache.prototype.initialize = function(cb) {
-  if (!cb || !_.isFunction(cb)) {
-    throw new Error('Callback was not found or invalid');
-  }
-
-  var tasks = [
-    this._getLocalUserId,
-    this._bindPlatformEvents,
-    this._getUsers
-  ];
-
-  var self = this;
-
-  async.series(tasks, function(err) {
-    if (err) {
-      return self.destroy(function() {
-        // Ignore destroy errors here since we're erroring anyways.
-        return cb(err);
-      });
-    }
-
-    cb();
-  });
-};
-
-/**
- * Destroys the UserCache instance.
- * @param {function} cb A callback function.
- * @return {function} A callback function.
- */
-UserCache.prototype.destroy = function(cb) {
-  var self = this;
-
-  if (!cb || !_.isFunction(cb)) {
-    throw new Error('Callback was not found or invalid');
-  }
-
-  var users = self._room.key('/.users');
-
-  var tasks = [
-    _.bind(self._room.off, self._room, 'leave', self._handleLeaveEvent),
-    _.bind(self._room.off, self._room, 'join', self._handleJoinEvent),
-    _.bind(users.off, users, 'set', self._updateUser),
-    _.bind(users.off, users, 'remove', self._updateUser)
-  ];
-
-  self._emitter.off();
-
-  async.parallel(tasks, cb);
-};
-
-/**
- * Returns the locally stored user object.
- * @param {string} id The user object ID.
- * @return {object} The user object matching the given id.
- */
-UserCache.prototype.getUser = function(id) {
-  var user = this._users[id];
-
-  if (!user) {
-    throw new Error('Invalid id: user not found.');
-  }
-
-  return user;
-};
-
-/**
- * Returns all users.
- * @return {object[]} All user objects in an array.
- */
-UserCache.prototype.getAll = function() {
-  return _.toArray(this._users);
-};
-
-/**
- * Returns the local user object.
- * @return {object} The local user's object.
- */
-UserCache.prototype.getLocalUser = function() {
-  return this.getUser(this._localUserId);
-};
-
-/**
- * Returns the locally stored user key.
- * @param {string} id The user's id.
- * @return {object} The user key matching the given id.
- */
-UserCache.prototype.getUserKey = function(id) {
-  var userKey = this._usersKeys[id];
-
-  if (!userKey) {
-    throw new Error('Invalid id: user key not found.');
-  }
-
-  return userKey;
-};
-
-/**
- * Returns all user keys.
- * @return {object[]} All user key objects in an array.
- */
-UserCache.prototype.getAllUserKeys = function() {
-  return _.toArray(this._usersKeys);
-};
-
-/**
- * Returns the local user's key.
- * @return {object} The local user's key.
- */
-UserCache.prototype.getLocalUserKey = function() {
-  return this.getUserKey(this._localUserId);
-};
-
-/**
- * Register an event handler.
- * @param {string} event The event to listen for. Accepts: join, leave, change.
- * @param {function} listener The listener to call when an event occurs.
- */
-UserCache.prototype.on = function(event, listener) {
-  if (!_.contains(VALID_EVENTS, event)) {
-    throw new Error('Invalid event: \"' + event + '\" is not a valid event.');
-  }
-
-  if (!_.isFunction(listener)) {
-    throw new Error('Invalid argument: listener function is required');
-  }
-
-  this._emitter.on(event, listener);
-};
-
-/**
- * Remove an event handler.
- * @param {string} event The event to listen for. Accepts: join, leave, change.
- * @param {function} listener The listener to call when an event occurs.
- */
-UserCache.prototype.off = function(event, listener) {
-  /*jshint unused: false */
-  // Emitter#off relies on the number of arguments supplied, don't pass through
-  // undefineds.
-  var args = Array.prototype.slice.call(arguments);
-  this._emitter.off.apply(this._emitter, args);
-};
-
-/**
- * Gets the local user's ID
- * @private
- * @param {function} cb A callback function.
- */
-UserCache.prototype._getLocalUserId = function(cb) {
-  var self = this;
-
-  this._room.user(function(err, user) {
-    if (err) {
-      return cb(err);
-    }
-
-    self._localUserId = user.id;
-    cb();
-  });
-};
-
-/**
- * Fetches the initial list of users.
- * @private
- * @param {function} cb A callback function.
- */
-UserCache.prototype._getUsers = function(cb) {
-  var self = this;
-
-  this._room.users(function(err, userMap, keyMap) {
-    if (err) {
-      return cb(err);
-    }
-
-    self._users = userMap;
-    self._usersKeys = keyMap;
-
-    cb();
-  });
-};
-
-/**
- * Binds to room.join, room.leave and user key.set
- * @private
- * @param {function} cb A callback function.
- * @return {function} A callback function.
- */
-UserCache.prototype._bindPlatformEvents = function(cb) {
-  var self = this;
-  var users = self._room.key('/.users');
-
-  var metaOptions = {
-    local: true,
-    bubble: true,
-    listener: self._updateUser
-  };
-
-  var tasks = [
-    _.bind(self._room.on, self._room, 'leave', self._handleLeaveEvent),
-    _.bind(self._room.on, self._room, 'join', self._handleJoinEvent),
-    _.bind(users.on, users, 'set', metaOptions),
-    _.bind(users.on, users, 'remove', metaOptions)
-  ];
-
-  async.parallel(tasks, cb);
-};
-
-/**
- * Updates a locally stored user object with the changed/new properties and
- * emits a 'change' event.
- * @private
- * @param {object} value The value of the key upon the listener being fired.
- * @param {context} context A key context object for the event.
- */
-UserCache.prototype._updateUser = function(value, context) {
-  var self = this;
-
-  // TODO : Do this more efficiently by just merging the new data in.
-  this._room.key('/.users/' + context.userId).get(function(err, user) {
-    if (err) {
-      throw err;
-    }
-
-    self._users[user.id] = user;
-    self._emitter.emit('change', user, context.key);
-  });
-};
-
-/**
- * Adds/updates the users map with a new user object and emits a 'join' event.
- * @private
- * @param {object} user A user object.
- */
-UserCache.prototype._handleJoinEvent = function(user) {
-  this._users[user.id] = user;
-  this._usersKeys[user.id] = this._room.key('/.users/' + user.id);
-
-  this._emitter.emit('join', user);
-};
-
-/**
- * Removes the user object from the users map and emits a 'leave' event.
- * @private
- * @param {object} user A user object.
- */
-UserCache.prototype._handleLeaveEvent = function(user) {
-  delete this._users[user.id];
-  delete this._usersKeys[user.id];
-
-  this._emitter.emit('leave', user);
-};
-
-module.exports = UserCache;
-
-});
 require.register("goangular/index.js", function(exports, require, module){
 /* jshint browser:true */
 /* global require, angular */
@@ -8337,13 +8037,13 @@ require.register("goangular/index.js", function(exports, require, module){
  * @fileOverview
  *
  * Responsible for creating the goinstant AngularJS module and registering
- * the platform provider and goAngular scope synchronization service.
+ * the goConnect provider and goAngular scope synchronization service.
  *
  * @example
  *   var app = angular.module('app', ['goinstant']);
  *
- *   app.config(function(platformProvider) {
- *    platformProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
+ *   app.config(function(goConnectProvider) {
+ *    goConnectProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
  *   });
  *
  *   app.controller('ctrlName',
@@ -8357,25 +8057,25 @@ require.register("goangular/index.js", function(exports, require, module){
 
 'use strict';
 
-var goConnect = require('./lib/go_connect');
-var goUsersFactory = require('./lib/go_users_factory.js');
+var connectionFactory = require('./lib/connection_factory');
 var goAngularFactory = require('./lib/go_angular_factory');
 
-/** Create AngularJS goinstant module */
+/** Create AngularJS goangular module */
 
-var goinstant = angular.module('goinstant', []);
+var goangular = angular.module('goangular', []);
 
-/** Register Platform Service */
+/** Register connection Service */
 
-goinstant.provider('goConnect', goConnect);
+goangular.provider('goConnection', connectionFactory);
 
-/** Register Platform Service */
+/** Register GoAngular Factory */
 
-goinstant.factory('goUsers', goUsersFactory);
-
-/** Register GoAngular Service */
-
-goinstant.factory('GoAngular', ['$q', '$parse', 'goConnect', goAngularFactory]);
+goangular.factory('goSyncScope', [
+  '$q',
+  '$parse',
+  'goConnection',
+  goAngularFactory
+]);
 
 });
 require.register("goangular/lib/safe_apply.js", function(exports, require, module){
@@ -8414,566 +8114,121 @@ var safeApply = module.exports = function($scope, fn) {
 
 
 });
-require.register("goangular/lib/go_connect.js", function(exports, require, module){
+require.register("goangular/lib/connection.js", function(exports, require, module){
 /* jshint browser:true */
 /* global require, module, goinstant */
-/* exported goConnect */
 
 /**
  * @fileOverview
  *
- * This file contains the goConnect service, which manages configuring
- * and connecting to Platform.
+ * This file contains an abstraction of the goinstant.connect method
  */
 
 'use strict';
 
 var _ = require('lodash');
-var errors = require('./errors');
-var safeApply = require('./safe_apply');
 
-/** @constant {Array} Whitelisted options */
-
-var OPTIONS_WL = ['rooms', 'user'];
+module.exports = Connection;
 
 /**
- * goConnect Service
- * @returns {Object}
- */
-var goConnect = module.exports = function() {
-
-  var goOpts;
-
-  return {
-
-    /**
-     * Called during AngularJS configuration stage to set Platform options
-     * @public
-     * @param{String} url - Platform connection Url
-     * @param {Object} opts
-     * @config {String|Array} rooms - Rooms which will be joined
-     * @config {String} [user] - Platform user JWT
-     * @example
-     *   angularApp.config(function(goConnectProvider) {
-     *     goConnectProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
-     *   });
-     */
-    set: function(url, opts) {
-      opts = opts || {};
-
-      if (!_.isString(url)) {
-        throw errors.create('goConnect', 'INVALID_URL');
-      }
-
-      if (!_.isPlainObject(opts)) {
-        throw errors.create('goConnect', 'INVALID_OPTIONS');
-      }
-
-      if (optsInvalid(opts, OPTIONS_WL)) {
-        throw errors.create('goConnect', 'INVALID_ARGUMENT');
-      }
-
-      if (opts.rooms && !_.isArray(opts.rooms) && !_.isString(opts.rooms)) {
-        throw errors.create('goConnect', 'INVALID_ROOM');
-      }
-
-      if (opts.user && !_.isString(opts.user) && !_.isPlainObject(opts.user)) {
-        throw errors.create('goConnect', 'INVALID_TOKEN');
-      }
-
-      if (_.isString(opts.rooms)) {
-        opts.rooms = [opts.rooms];
-      }
-
-      goOpts = { url: url, opts: opts };
-    },
-
-    /**
-     * Opens a Platform connection and joins the rooms provided via
-     * @public
-     * the 'roomNames' option.
-     * @param {Object} $q - Angular promise library
-     * @param {Object} $scope - rootScope
-     * @returns {Object} deferred - passed Platform object on resolution
-     * @todo Refactor option handling
-     */
-    $get: ['$q', '$rootScope',  function($q, $rootScope) {
-      if (!window.goinstant) {
-        throw errors.create('goinstantProvider', 'MISSING_DEPENDENCY');
-      }
-
-      var deferred = $q.defer();
-
-      var opts = {};
-
-      // Don't define a keys on opts unless its defined in the provider
-      // options. goinstant.connect will error.
-      if (goOpts.opts.rooms) {
-        opts.rooms = goOpts.opts.rooms;
-      }
-
-      if (goOpts.opts.user) {
-        opts.user = goOpts.opts.user;
-      }
-
-      goinstant.connect(goOpts.url, opts, function(err, platform) {
-        if (err) {
-          return deferred.reject(err);
-        }
-
-        var rooms = {};
-
-        _.each(_.toArray(arguments).slice(2), function(value) {
-          rooms[value.name] = value;
-        });
-
-        safeApply($rootScope, function() {
-          deferred.resolve({
-            platform: platform,
-            rooms: rooms
-          });
-        });
-      });
-
-      return deferred.promise;
-    }]
-  };
-};
-
-/* Helpers */
-
-function optsInvalid(opts, valid_opts) {
-  return _.difference(_.keys(opts), valid_opts).length;
-}
-
-});
-require.register("goangular/lib/go_users_factory.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the GoUser class which provides a set of low level methods
- * used to manage GoInstant users.
- */
-
-'use strict';
-
-var _ = require('lodash');
-var errors = require('./errors');
-var GoUsers = require('./go_users');
-
-/**
- * This function is registered as a factory with Angular in ../index.js
- * @private
- * @param {Object} $rootScope - use to emit & broadcast events
- * @param {Object} $q - Angular promise library
- * @param {Object} goConnect - GoInstant connection object
- * @returns {Object}
- */
-module.exports = function($rootScope, $q, goConnect) {
-  // container for goUsers instances
-  var instances = {};
-
-  /**
-   * room returns an instance of GoUsers associated with the room specified
-   * @public
-   * @param {String} room - To maintain consistency with the GoInstant API we
-   * provide a `room` method, used to specify the room you wish to connect to.
-   *
-   * @example
-   *   goUsers.room('YOUROOM').initialize().then(...
-   */
-  return {
-    room: function(room) {
-      if (room && !_.isString(room)) {
-        throw errors.create('goUsers', 'INVALID_ROOM');
-      }
-
-      room = room || 'lobby';
-
-      if (instances[room]) {
-        return instances[room];
-      }
-
-      instances[room] = new GoUsers($rootScope, $q, goConnect, room);
-
-      return instances[room];
-    }
-  };
-};
-
-});
-require.register("goangular/lib/go_users.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the GoUser class which provides a set of low level methods
- * used to manage GoInstant users.
- */
-
-'use strict';
-
-var _ = require('lodash');
-var errors = require('./errors');
-
-GoUsers.debug = {
-  safeApply: require('./safe_apply'),
-  UserCache: require('usercache'),
-  UserFactory: require('./user_factory')
-};
-
-module.exports = GoUsers;
-
-/**
- * Instantiated by the `room` method, this constructor is not exposed.
- * @private
- * @constructor
- * @class
- * @param {Object} $rootScope - Angular root scope used to emit & broadcast
- * events
- * @param {Object} $q - Angular promise library
- * @param {Object} goConnect - GoInstant connection object
- * @param {String} room - Room name
- * @returns {Object} goUsers
- */
-function GoUsers($rootScope, $q, goConnect, room) {
-  _.extend(this, {
-    _$rootScope: $rootScope,
-    _$q: $q,
-    _goConnect: goConnect,
-    _room: room
-  });
-}
-
-/**
- * initialize ensures a connection to GoInstant is ready, calls the setup
- * method and returns a $q promise.
- * @public
- * @returns {Object} promise
- */
-GoUsers.prototype.initialize = function() {
-  var deferred = this._$q.defer();
-  var setup = _.bind(this._setup, this, deferred);
-
-  this._goConnect.then(setup, deferred.reject);
-
-  return deferred.promise;
-};
-
-/**
- * Responsible for GoUsers setup
- * @private
- * @param {Object} deferred - promise handle
- * @param {Object} goinstant - goinstant container
- */
-GoUsers.prototype._setup = function(deferred, goinstant) {
-  var self = this;
-
-  // Retrieve the room (default will be 'Lobby')
-  self._room = goinstant.rooms[self._room];
-
-  if (!self._room) {
-    return deferred.reject(errors.create('GoUsers', 'INVALID_ROOM'));
-  }
-
-  // Create a new UserCache
-  self._userCache = new GoUsers.debug.UserCache(self._room);
-  self._prepareUserFactory();
-  self._bindListeners();
-
-  self._userCache.initialize(function(err) {
-    if (err) {
-     return deferred.reject(err);
-    }
-
-    GoUsers.debug.safeApply(self._$rootScope, function() {
-      deferred.resolve(self);
-    });
-  });
-};
-
-/**
- * Creates a new UserFactory and borrows exposed methods
- * @private
- */
-GoUsers.prototype._prepareUserFactory = function() {
-  var self = this;
-
-  var userFactory = new GoUsers.debug.UserFactory(
-    self._$q,
-    self._$rootScope,
-    self._userCache,
-    self._room
-  );
-
-  _.map(userFactory.EXPORTED_METHODS, function(method) {
-    self[method] = _.bind(userFactory[method], userFactory);
-  });
-};
-
-/**
- * Attach event listeners to the `userCache`
- * @private
- */
-GoUsers.prototype._bindListeners = function() {
-  this._userCache.on('join', _.bind(this._joinHandler, this));
-  this._userCache.on('leave',_.bind(this._leaveHandler, this));
-};
-
-/**
- * Handle join events
- * @private
- */
-GoUsers.prototype._joinHandler = function(props) {
-  var user = this.get(props.id);
-
-  this._$rootScope.$broadcast('go:join', user);
-};
-
-/**
- * Handle leave events
- * @private
- */
-GoUsers.prototype._leaveHandler = function(props) {
-  this._$rootScope.$broadcast('go:leave', props);
-};
-
-});
-require.register("goangular/lib/user_factory.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the UserFactory, responsible for creating and retrieving
- * user objects.
- */
-
-'use strict';
-
-var errors = require('./errors');
-var _ = require('lodash');
-
-module.exports = UserFactory;
-
-UserFactory.debug = {
-  User: require('./user_model')
-};
-
-var EXPORTED_METHODS =  ['getUser', 'getSelf', 'getUsers'];
-
-/**
- * UserFactory provides a set of methods of finding and managing GoInstant users
- * @private
- * @constructor
- * @class
- * @param {Object} $q - Angular promise library
- * @param {Object} $rootScope - use to emit & broadcast events
- * @param {Object} cache - Instance of user cache
- * @returns {Object} userFactory
- */
-function UserFactory($q, $rootScope, cache, room) {
-  _.extend(this, {
-    _$q: $q,
-    _$rootScope: $rootScope,
-    _cache: cache,
-    _room: room,
-    _users: {},
-    EXPORTED_METHODS: EXPORTED_METHODS
-  });
-}
-
-/**
- * Returns a user object
- * @param {Object} id - GoInstant user id
- * @returns {Object} user
- */
-UserFactory.prototype.getUser = function(id) {
-  if (!_.isString(id)) {
-    throw errors.create('goUsers', 'INVALID_ID');
-  }
-
-  if (this._users[id]) {
-    return this._users[id];
-  }
-
-  var props = this._cache.getUser(id);
-  var key = this._cache.getUserKey(id);
-
-  this._users[id] = new UserFactory.debug.User(
-    props,
-    key,
-    this._cache,
-    this._$q,
-    this._$rootScope
-  );
-
-  return this._users[id];
-};
-
-/**
- * Get the local user
- * @returns {Object} user
- */
-UserFactory.prototype.getSelf = function() {
-  var id = this._cache.getLocalUser().id;
-
-  return this.getUser(id);
-};
-
-/**
- * Get all users
- * @returns {Array} users
- */
-UserFactory.prototype.getUsers = function() {
-  var self = this;
-
-  return _.map(self._cache.getAllUserKeys(), function(key) {
-    return self.getUser(_.last(key.name.split('/')));
-  });
-};
-
-});
-require.register("goangular/lib/user_model.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the User Class which provides methods for interacting
- * with user data
- */
-
-'use strict';
-
-var _ = require('lodash');
-var errors = require('./errors');
-var emitter = require('emitter');
-
-User.debug = {
-  safeApply: require('./safe_apply')
-};
-
-module.exports = User;
-
-/**
- * User Model
+ * Instantiated by the Connection factory, this class allows users to configure
+ * a goinstant connection during Angulars configuration stage.
  * @public
  * @constructor
  * @class
- * @param {Object} props - User attributes
- * @param {Object} key - GoInstant key associated with this user
- * @param {Object} cache - User cache
- * @param {String} $q - Angular deferred objet
- * @param {String} $rootScope - Angular root scope
- * @returns {Object} user
+ * @example
+ *  angular.module('YourApp', ['goangular'])
+ *    .config(function(goConnectionProvider) {
+ *      goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+ *    })
+ *    .controller('YourCtrl', function(goConnection) {
+ *      goConnection.ready().then(function(connection) {
+ *        // connected
+ *      });
+ *    });
  */
-function User(props, key, cache, $q, $rootScope) {
+function Connection() {
   _.extend(this, {
-    props: props,
-    id: props.id,
-    key: key,
-    _cache: cache,
-    _$q: $q,
-    _$rootScope: $rootScope
+    _opts: {},
+    _connection: null,
+    _connecting: false,
+    _configured: false
   });
-
-  this._setup();
 }
 
-emitter(User.prototype); // extend Emitter
-
 /**
- * Attach a listener to the cache's change event
+ * Configure a future goinstant connection
+ * @param {String} url - Registered application URL
+ * @param {Object} [opts]
+ * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
+ * @config {String} room - is an optional room name, defaults to 'lobby'
+ * @config {Array} rooms - An array of room names cannot be used in conjunction
+ * with the room option
  */
-User.prototype._setup = function() {
-  var self = this;
+Connection.prototype.set = function(url, opts) {
+  this._configured = true;
 
-  self._cache.on('change', function(props) {
-    if (props.id != self.id) {
-      return;
-    }
-
-    var newVal = self.props;
-    var oldVal = self.props = props;
-
-    self.emit('change', newVal, oldVal);
-  });
+  _.extend(this, { _opts: (opts || {}), _url: url, _configured: true });
 };
 
 /**
- * set the value of a user property
- * @public
- * @param {String} key - user property key
- * @param {Mixed} value - new value for the key specified
- * @param {Object} [options] - GoInstant set options object
- * @return {Object} promise - resolved on succesful set
+ * This method is invoked by Angulars dependency injection system and initiates
+ * the connection with GoInstant
  */
-User.prototype.set = function(key, value, options) {
-  var self = this;
-  var deferred = self._$q.defer();
-
-  if (!_.isString(key)) {
-    throw errors.create('UserModel', 'INVALID_KEY');
+Connection.prototype.$get = function() {
+  if (!window.goinstant) {
+    throw new Error('GoAngular requires the GoInstant library.');
   }
 
-  if (_.isUndefined(value)) {
-    throw errors.create('UserModel', 'INVALID_ARGUMENT');
+  if (!this._connecting) {
+    this._connect();
   }
 
-  if (options && !_.isSimpleObject(options)) {
-    throw errors.create('UserModel', 'INVALID_ARGUMENT');
-  }
-
-  options = options || {};
-
-  self.key.key(key).set(value, options, function(err, value) {
-    //console.log('set?', value);
-    if (err) {
-      return  deferred.reject(err);
-    }
-
-    User.debug.safeApply(self._$rootScope, function() {
-      deferred.resolve(value);
-    });
-  });
-
-  return deferred.promise;
+  return this;
 };
 
 /**
- * Get the value of a user property
- * @public
- * @param {String} key - user property key
- * @return {Mixed} value
+ * Responsible for connecting to goinstant, assigns a promise to the private
+ * connection property
  */
-User.prototype.get = function(key) {
-  if(!_.isString(key)) {
-    throw errors.create('UserModel', 'INVALID_KEY');
+Connection.prototype._connect = function() {
+  if (!this._configured) {
+    throw new Error('The GoInstant connection must be configured first.');
   }
 
-  if (!this.props[key]) {
-    return null;
-  }
-
-  return _.clone(this.props[key]);
+  this._connecting = true;
+  this._connection = goinstant.connect(this._url, this._opts).get('connection');
 };
 
 /**
- * Get the value of a user property
- * @public
- * @param {String} key - user property key
- * @return {Mixed} value
+ * @returns {Object} connection - a promise which will be resolved once a
+ * connection has been established or rejected if an async error is encountered
  */
-User.prototype.getAll = function() {
-  return _.clone(this.props);
+Connection.prototype.ready = function() {
+  return this._connection;
+};
+
+});
+require.register("goangular/lib/connection_factory.js", function(exports, require, module){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Connection factory, responsible for the connection
+ * singleton
+ */
+
+'use strict';
+
+var Connection = require('./connection');
+var connection;
+
+module.exports = function connectionFactory() {
+  connection = connection || new Connection();
+
+  return connection;
 };
 
 });
@@ -9005,10 +8260,10 @@ var OPTIONS_WL = ['room', 'include', 'exclude'];
  * @public
  * @param {Object} $q - Angular promise library
  * @param {Object} $parse - Angular parse
- * @param {Object} platform - Connected platform object
+ * @param {Object} goConnect - goConnect service
  * @returns {Function} option validation & instance creation
  */
-var goAngularFactory = module.exports = function($q, $parse, goConnect) {
+var goAngularFactory = module.exports = function($q, $parse, goConnection) {
 
   /**
    * @public
@@ -9045,7 +8300,7 @@ var goAngularFactory = module.exports = function($q, $parse, goConnect) {
       throw errors.create('goAngularFactory', 'INVALID_EXCLUDE');
     }
 
-    return new GoAngular(scope, namespace, opts, $q, $parse, goConnect);
+    return new GoAngular(scope, namespace, opts, $q, $parse, goConnection);
   };
 };
 
@@ -9073,10 +8328,7 @@ var _ = require('lodash');
 var errors = require('./errors');
 var async = require('async');
 var emitter = require('emitter');
-var ScopeScrubber = require('./scope_scrubber');
-var ModelBinder = require('./model_binder');
 var safeApply = require('./safe_apply');
-var UserFactory = require('./user_factory');
 
 
 /** @constant {String} GoInstant key namespace */
@@ -9084,6 +8336,9 @@ var UserFactory = require('./user_factory');
 var GOINSTANT_KEY_NAMESPACE = 'goinstant/integrations/go-angular';
 
 module.exports = GoAngular;
+
+GoAngular.ModelBinder = require('./model_binder');
+GoAngular.ScopeScrubber = require('./scope_scrubber');
 
 /**
  * Instantiated by the goAngular factory, this creates a 2-way binding
@@ -9094,28 +8349,28 @@ module.exports = GoAngular;
  * @constructor
  * @class
  * @param {Object} scope - Angular controller $scope
- * @param {String} namespace - Platform key name unique to this controller
+ * @param {String} namespace - GoInstant key name unique to this controller
  * @param {Object} opts
- * @config {String} room - Platform room name
+ * @config {Mixed} [room] - GoInstant room
  * @config {Array} [include] - An array of strings or regex
  * @config {Array} [exclude] - An array of strings or regex
  * @param {Object} $q - Angular promise library
  * @param {Function} $parse - Angular parse
- * @param {Object} platform - a promise which will resolve to a platform object
+ * @param {Object} goConnection - a promise which will resolve to a connection
  * @example
  *   var goAngular = new GoAngular({
  *     scope: $scope,
- *     roomName: 'roomSpecifiedInConfig',
+ *     roomName: 'roomName',
  *     keyName: 'aUniqueKey'
  *   })
  */
-function GoAngular(scope, namespace, opts, $q, $parse, goConnect) {
+function GoAngular(scope, namespace, opts, $q, $parse, goConnection) {
   applyOptions(this, opts);
 
   _.extend(this, {
     _scope: scope,
     _namespace: namespace,
-    _goConnect: goConnect,
+    _goConnection: goConnection,
     _deferred: $q.defer(),
     _parse: $parse,
     _boundKeys: [] // Previously bound model keys
@@ -9127,28 +8382,24 @@ function GoAngular(scope, namespace, opts, $q, $parse, goConnect) {
 emitter(GoAngular.prototype); // extend Emitter
 
 /**
- * Responsible for initial scope <=> platform bindings
+ * Responsible for initial scope <=> goinstant bindings
  * @public
  * @returns {Object} promise which will resolve to an instance of this class
- * @todo Add additional component specific namespace
  */
-
-var GOINSTANT_KEY_NAMESPACE = 'goinstant/integrations/go-angular';
 GoAngular.prototype.initialize = function() {
   var self = this;
+  var ModelBinder = GoAngular.ModelBinder;
+  var ScopeScrubber = GoAngular.ScopeScrubber;
 
-  // Resolves once platform connection is established
-  self._goConnect.then(function(result) {
-    var room = result.rooms[(self._room || 'lobby')];
-
-    if (!room) {
-      return self._deferred.reject('Invalid Room: Missing from configuration');
+  // Resolves once goinstant connection is established
+  self._connect(function(err) {
+    if (err) {
+      return safeApply(self._scope, function() {
+       self._deferred.reject(err);
+      });
     }
 
-    // Create a namespaced GoInstant key, should be specific to this controller
-    self._key = room.key(GOINSTANT_KEY_NAMESPACE).key(self._namespace);
-
-    // Creates the data binding between scope and platform
+    // Creates the data binding between scope and goinstant
     self._modelBinder = new ModelBinder(self._scope, self._parse, self._key);
 
     var scopeFilterOptions = {
@@ -9180,9 +8431,23 @@ GoAngular.prototype.initialize = function() {
         });
       }
     );
-  }, self._deferred.reject);
+  });
 
   return this._deferred.promise;
+};
+
+GoAngular.prototype._connect = function(cb) {
+  var self = this;
+
+  self._goConnection.ready()
+    .then(function(connection) {
+      return connection.room((self._room || 'lobby')).join().get('room');
+    })
+    .then(function(room) {
+      self._key = room.key(GOINSTANT_KEY_NAMESPACE).key(self._namespace);
+      cb(null);
+    })
+    .fail(cb);
 };
 
 /**
@@ -9231,7 +8496,7 @@ GoAngular.prototype._handleScopeChanges = _.debounce(function() {
  * @todo handle errors when no listeners are available
  */
 GoAngular.prototype.destroy = function destroy(cb) {
-  if (!_.isFunction(cb)) {
+  if (cb && !_.isFunction(cb)) {
     throw errors.create('GoAngular', 'INVALID_CALLBACK');
   }
 
@@ -9257,8 +8522,8 @@ require.register("goangular/lib/scope_scrubber.js", function(exports, require, m
  * @fileOverview
  *
  * This file contains the ScopeScrubber class, which is responsible for removing
- * anything from scope that either (a) cannot be stored in platform, or (b)
- * the user specifies shouldn't be stored in platform.
+ * anything from scope that either (a) cannot be stored in goinstant, or (b)
+ * the user specifies shouldn't be stored in goinstant.
  */
 
 'use strict';
@@ -9420,7 +8685,7 @@ require.register("goangular/lib/model_binder.js", function(exports, require, mod
  * @fileOverview
  *
  * This file contains the ModelBinder class, which is responsible for
- * associating a model in scope (so anything $scope[here]) with a platform key.
+ * associating a model in scope (so anything $scope[here]) with a goinstant key.
  */
 
 'use strict';
@@ -9452,11 +8717,11 @@ function ModelBinder($scope, $parse, key) {
 }
 
 /**
- * Creates an association between a model in $scope and a key in platform by
+ * Creates an association between a model in $scope and a key in goinstant by
  * fetching an existing value, monitoring the local scope, and listening for
- * changes on this value in platform.
+ * changes on this value in goinstant.
  * @private
- * @param {String} modelName - Name of the model in scope and the platform key
+ * @param {String} modelName - Name of the model in scope and the goinstant key
  * @param {requestCallback} [cb]- The callback that handles the response.
  */
 ModelBinder.prototype.newBinding = function(modelName, cb) {
@@ -9477,7 +8742,7 @@ ModelBinder.prototype.newBinding = function(modelName, cb) {
 /**
  * Generates a model with get/set functions powered by $parse
  * @private
- * @param {String} modelName - Name of the model in scope and the platform key
+ * @param {String} modelName - Name of the model in scope and the goinstant key
  */
 ModelBinder.prototype._generateModel = function(modelName) {
   var model = {};
@@ -9492,10 +8757,10 @@ ModelBinder.prototype._generateModel = function(modelName) {
 
 
 /**
- * Attempts to retrieve a value from platform, if none exists it uses the
+ * Attempts to retrieve a value from goinstant, if none exists it uses the
  * existing value as a default.
  * @private
- * @param {String} modelName - Name of the model in scope and the platform key
+ * @param {String} modelName - Name of the model in scope and the goinstant key
  * @param {requestCallback} next- The callback that handles the response.
  */
 ModelBinder.prototype._firstFetch = function(model, next) {
@@ -9531,7 +8796,7 @@ ModelBinder.prototype._firstFetch = function(model, next) {
 /**
  * Adds a listener to the $watch table
  * @private
- * @param {String} modelName - Name of the model in scope and the platform key
+ * @param {String} modelName - Name of the model in scope and the goinstant key
  * @param {requestCallback} next - The callback that handles the response.
  * @todo It might be easier to test change validation in isolation
  */
@@ -9557,9 +8822,9 @@ ModelBinder.prototype._localMonitor = function(model, next) {
 };
 
 /**
- * Monitor platform key changes
+ * Monitor goinstant key changes
  * @private
- * @param {String} modelName - Name of the model in scope and the platform key
+ * @param {String} modelName - Name of the model in scope and the goinstant key
  * @param {requestCallback} next - The callback that handles the response.
  * @todo Initial monitoring should only be called once, additional calls
  * should add the modelName to an array of modelNames to validate against
@@ -9601,7 +8866,7 @@ ModelBinder.prototype._keySetHandler = function(value, context) {
  * Returns the model name when passed a key so:
  * key: '/uniqueControllerKey/modelName', becomes: 'modelName'
  * @private
- * @param {String} key - platform key
+ * @param {String} key - goinstant key
  * @returns {String} modelName
  */
 ModelBinder.prototype._keyToModel = function(key) {
@@ -9611,7 +8876,7 @@ ModelBinder.prototype._keyToModel = function(key) {
 /**
  * Removes the set listener from the key and invokes every stopwatch
  * @private
- * @param {String} key - platform key
+ * @param {String} key - goinstant key
  * @param {requestCallback} next - The callback that handles the response.
  */
 ModelBinder.prototype.cleanup = function(cb) {
@@ -9721,7 +8986,6 @@ errors.create = function(method, type) {
 
 
 
-
 require.alias("component-emitter/index.js", "goangular/deps/emitter/index.js");
 require.alias("component-emitter/index.js", "emitter/index.js");
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
@@ -9734,19 +8998,6 @@ require.alias("lodash-lodash/index.js", "goangular/deps/lodash/index.js");
 require.alias("lodash-lodash/dist/lodash.compat.js", "goangular/deps/lodash/dist/lodash.compat.js");
 require.alias("lodash-lodash/index.js", "lodash/index.js");
 
-require.alias("goinstant-usercache/usercache.js", "goangular/deps/usercache/usercache.js");
-require.alias("goinstant-usercache/usercache.js", "goangular/deps/usercache/index.js");
-require.alias("goinstant-usercache/usercache.js", "usercache/index.js");
-require.alias("component-emitter/index.js", "goinstant-usercache/deps/emitter/index.js");
-require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
-
-require.alias("lodash-lodash/index.js", "goinstant-usercache/deps/lodash/index.js");
-require.alias("lodash-lodash/dist/lodash.compat.js", "goinstant-usercache/deps/lodash/dist/lodash.compat.js");
-
-require.alias("caolan-async/lib/async.js", "goinstant-usercache/deps/async/lib/async.js");
-require.alias("caolan-async/lib/async.js", "goinstant-usercache/deps/async/index.js");
-require.alias("caolan-async/lib/async.js", "caolan-async/index.js");
-require.alias("goinstant-usercache/usercache.js", "goinstant-usercache/index.js");
 require.alias("goangular/index.js", "goangular/index.js");if (typeof exports == "object") {
   module.exports = require("goangular");
 } else if (typeof define == "function" && define.amd) {

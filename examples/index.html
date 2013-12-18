@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html ng-app="ourCoolApp">
+<html ng-app="ourCoolApp" ng-csp>
   <head>
     <title>GoInstant GoAngular Component Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,10 +10,12 @@
     <script src="../config/config.js"></script>
 
     <!-- Platform -->
-    <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
+    <script src="https://cdn.local.goinstant.org/v1/platform.min.js"></script>
 
     <!-- Angular -->
     <script src="http://code.angularjs.org/1.2.0-rc.2/angular.js"></script>
+
+    <script src="../node_modules/q/q.js"></script>
 
     <!-- jQuery & Bootstrap -->
     <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">

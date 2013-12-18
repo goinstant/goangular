@@ -26,28 +26,25 @@
 
 'use strict';
 
-var goConnect = require('./lib/go_connect');
-var goUsersFactory = require('./lib/go_users_factory.js');
+var connectionFactory = require('./lib/connection_factory');
 var goAngularFactory = require('./lib/go_angular_factory');
+var syncFactory = require('./lib/sync_factory');
 
-/** Create AngularJS goinstant module */
+/** Create AngularJS goangular module */
 
-var goinstant = angular.module('goinstant', []);
+var goangular = angular.module('goangular', []);
 
-/**
- *  Register goConnect Service
- *
- *  platformProvider is being aliased for backwards compatibility
- *  consider it deprecated
- */
+/** Register connection Service */
 
-goinstant.provider('goConnect', goConnect);
-goinstant.provider('platform', goConnect);
+goangular.provider('goConnection', connectionFactory);
 
-/** Register goUsers Factory */
-
-goinstant.factory('goUsers', goUsersFactory);
+goangular.factory('goSync', ['$parse', syncFactory]);
 
 /** Register GoAngular Factory */
 
-goinstant.factory('GoAngular', ['$q', '$parse', 'goConnect', goAngularFactory]);
+goangular.factory('goSyncScope', [
+  '$q',
+  '$parse',
+  'goConnection',
+  goAngularFactory
+]);

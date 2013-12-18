@@ -37,13 +37,14 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-saucelabs');
+  grunt.loadNpmTasks('grunt-contrib-watch');
 
   grunt.initConfig({
     clean: CLEAN_DIRS,
     connect: {
       server: {
         options: {
-          base: "",
+          base: '',
           port: 9999
         }
       }
@@ -51,19 +52,33 @@ module.exports = function(grunt) {
     'saucelabs-mocha': {
       all: {
         options: {
-          urls: ["http://localhost:9999/test/index.html"],
+          urls: ['http://localhost:9999/tests/index.html'],
             tunnelTimeout: 5,
           build: process.env.TRAVIS_JOB_ID,
           concurrency: 8,
           browsers: BROWSERS,
-          testname: "mocha tests",
-          tags: ["master"]
+          testname: 'GoAngular Unit Tests',
+          tags: ['master', 'goangular']
         }
       }
     },
+    watch: {
+      src: {
+        files: ['lib/*.js', 'index.js', 'component.json'],
+        tasks: ['component:build:dev']
+      },
+      reload: {
+        files: ['build/*.js', 'examples/**/*.js'],
+        options: {
+          livereload: true
+        }
+      }
+    }
   });
 
   grunt.registerTask('test', ['build', 'connect', 'saucelabs-mocha']);
+
+  grunt.registerTask('watch' ['watch']);
 
   // Jshint default task
   grunt.registerTask('build', [

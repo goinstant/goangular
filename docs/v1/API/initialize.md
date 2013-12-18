@@ -6,7 +6,8 @@ The `goAngular.initialize` method is used to begin the synchronization of models
 between two clients.  Models without an existing value stored in GoInstant
 default to the value currently assigned in scope. This method accepts no parameters.
 
-*Note: You must configure your GoInstant connection with the `platform` service prior to creating a new instance of GoAngular*
+*Note: You must configure your GoInstant connection with the `goConnection` provider
+prior to creating a new instance of GoAngular*
 
 ## Methods
 

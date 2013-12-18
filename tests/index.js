@@ -7,6 +7,7 @@ describe('GoAngular Component', function() {
   var require = window.require;
   var assert = window.assert;
   var sinon = window.sinon;
+  var Q = window.Q;
 
   var _ = require('lodash');
   var errors = require('goangular/lib/errors').errorMap;
@@ -14,9 +15,8 @@ describe('GoAngular Component', function() {
   var GoAngular = require('goangular/lib/go_angular');
   var ScopeScrubber = require('goangular/lib/scope_scrubber');
   var ModelBinder = require('goangular/lib/model_binder');
-  var goConnect = require('goangular/lib/go_connect');
 
-  var platform;
+  var connection;
   var deferred;
   var dependencies;
   var scopeFake;
@@ -33,16 +33,10 @@ describe('GoAngular Component', function() {
 
     sandbox = sinon.sandbox.create();
 
-    window.goinstant = {};
-    window.goinstant.Platform = sandbox.stub();
-    window.goinstant.Platform.returns(platform);
-    window.goinstant.connect = sandbox.stub().yields().callsArg(2);
-    window.goinstant.Room = function Room() {};
-
     scopeFake = {
       foo: 'bar',
       $apply: sandbox.stub().callsArg(0),
-      $watch: sandbox.spy()
+      $watch: sandbox.stub()
     };
 
     room = sandbox.stub();
@@ -85,18 +79,23 @@ describe('GoAngular Component', function() {
 
     dependencies = [deferred];
 
-    platform = {
+    var ready = Q.defer();
+
+    connection = {
+      ready: ready.promise,
       room: room,
       connect: sandbox.stub().callsArg(1)
     };
 
     result = {
-      rooms: {
+      room: {
         lobby: room,
         foo: room
       },
-      platform: platform
+      connection: connection
     };
+
+    ready.resolve(result);
   });
 
   afterEach(function() {
@@ -108,7 +107,7 @@ describe('GoAngular Component', function() {
 
     beforeEach(function() {
       // Simulate dependency injection
-      factory = goAngularFactory(deferred, parse, platform);
+      factory = goAngularFactory(deferred, parse, connection);
 
       scope = scopeFake;
       namespace = 'bar';
@@ -183,7 +182,7 @@ describe('GoAngular Component', function() {
       it('creates a deferred object, returns an instance', function() {
         assert.noException(function() {
           goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
+            scope, namespace, opts, deferred, parse, connection
           );
         });
 
@@ -194,238 +193,60 @@ describe('GoAngular Component', function() {
     });
 
     describe('#initialize', function() {
-
       beforeEach(function() {
-         platform.then = sandbox.stub().callsArgWith(0, result);
-      });
+        sandbox.stub(GoAngular, 'ScopeScrubber', function() {
+          return {
+            clean: sinon.stub().returns(['ding'])
+          };
+        });
 
-      it('resolves the deferred on a succesful initalization', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular.initialize();
-        assert(promise.resolve.calledOnce);
-      });
-
-      it('rejects the deferred on a failed platform connection', function() {
-        promise.reject = sandbox.stub();
-        platform.then = sandbox.stub().callsArgWith(1);
+        sandbox.stub(GoAngular, 'ModelBinder', function() {
+          return {
+            newBinding: sinon.stub().callsArg(1),
+            cleanup: sinon.stub().yields()
+          };
+        });
 
         goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
+          scope, namespace, opts, deferred, parse, connection
         );
 
-        goAngular.initialize();
-        assert(promise.reject.calledOnce);
-      });
-
-      it('creates a platform key', function() {
-        opts.room = 'foo';
-
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular.initialize();
-
-        assert(room.key.calledWith('goinstant/integrations/go-angular'));
-        assert(fakeKey.key.calledWith('bar'));
-      });
-
-      it('creates a new instance of ScopeScrubber', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular.initialize();
-        assert.instanceOf(goAngular._scopeScrubber, ScopeScrubber);
-      });
-
-      it('begins monitoring scope', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
+        goAngular._handleScopeChanges = sandbox.stub();
         goAngular._monitorScope = sandbox.stub();
+        goAngular._connect = sandbox.stub().callsArg(0);
+      });
+
+      it('succesfully initializes', function() {
         goAngular.initialize();
-        assert(goAngular._monitorScope.calledOnce);
+
+        sinon.assert.calledOnce(GoAngular.ScopeScrubber);
+        sinon.assert.calledOnce(GoAngular.ModelBinder);
+        sinon.assert.calledOnce(goAngular._monitorScope);
+        sinon.assert.calledOnce(promise.resolve);
       });
 
-      it('creates a new instance of ModelBinder', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
+      describe('#destroy', function() {
+        var cb;
 
-        goAngular.initialize();
-        assert.instanceOf(goAngular._modelBinder, ModelBinder);
-      });
-    });
-
-    describe('#_monitorScope', function() {
-
-      beforeEach(function() {
-        platform.then = sandbox.stub().callsArgWith(0, platform);
-      });
-
-      it('begins $watch[ing] scope', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular._monitorScope();
-        assert(scopeFake.$watch.calledWith(goAngular._handleScopeChanges));
-      });
-    });
-
-    describe('#_handleScopeChanges', function() {
-
-      beforeEach(function() {
-        platform.then = sandbox.stub().callsArgWith(0, result);
-      });
-
-      it('only binds new models', function(done) {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular.initialize();
-        goAngular._scope = { bar: 'foo' };
-        goAngular._handleScopeChanges();
-
-        goAngular._modelBinder.newBinding = function(modelKey, cb) {
-          assert.equal(modelKey, 'bar');
-          cb();
-          done();
-        };
-      });
-    });
-
-    describe('#destroy', function() {
-
-      beforeEach(function() {
-        platform.then = sandbox.stub().callsArgWith(0, result);
-      });
-
-      it('begins cleanup when invoked', function() {
-        goAngular = new GoAngular(
-            scope, namespace, opts, deferred, parse, platform
-        );
-
-        goAngular.initialize();
-        goAngular._modelBinder.cleanup = sandbox.stub();
-
-        var cb = sandbox.stub().yields();
-
-        goAngular.destroy(cb);
-        assert(goAngular._modelBinder.cleanup.calledWith(cb));
-      });
-
-      describe('Throws', function() {
-
-        it('throws if passed an invalid callback', function() {
-          goAngular = new GoAngular(
-              scope, namespace, opts, deferred, parse, platform
-          );
+        beforeEach(function() {
+          cb = sandbox.stub();
 
           goAngular.initialize();
-          assert.exception(function() {
-            goAngular.destroy();
-          }, 'GoAngular' + errors.INVALID_CALLBACK);
         });
-      });
-    });
-  });
 
-  describe('goConnect', function() {
-    var opts, url, instance, provider, $get;
+        it('begins cleanup when invoked', function() {
+          goAngular.destroy(cb);
 
-    beforeEach(function() {
-      // Simulate dependency injection
-      provider = goConnect();
-      $get = _.last(provider.$get);
-      opts = { rooms: ['foo'] };
-      url = 'bar';
-    });
-
-    describe('goConnect: Error Cases', function() {
-
-      var errorCases = {
-        'invalid options': {
-          opts: 'foo',
-          errorType: 'INVALID_OPTIONS'
-        },
-        'invalid argument': {
-          opts: { key: 'foo', value: 'bar' },
-          errorType: 'INVALID_ARGUMENT'
-        },
-        'invalid room': {
-          opts: { key: 'rooms', value: { foo: 'bar' } },
-          errorType: 'INVALID_ROOM'
-        },
-        'invalid url': {
-          url: ['foo'],
-          errorType: 'INVALID_URL'
-        },
-        'invalid user token': {
-          opts: { key: 'user', value: ['foo'] },
-          errorType: 'INVALID_TOKEN'
-        }
-      };
-
-       _.each(errorCases, function(errCase, errDesc) {
-        it('throws if passed ' + errDesc, function() {
-
-          url = errCase.url || url;
-
-          if (errCase.opts && errCase.opts.key) {
-            opts[errCase.opts.key] = errCase.opts.value;
-          } else {
-            opts = errCase.opts || opts;
-          }
-
-
-          assert.exception(function() {
-            instance = provider.set(url, opts);
-          }, 'goConnect' + errors[errCase.errorType]);
+          sinon.assert.calledOnce(cb);
         });
-      });
-    });
 
-    describe('goConnect: $get', function() {
+        describe('Throws', function() {
 
-      beforeEach(function() {
-        provider.set(url, opts);
-      });
-
-      it('connects to GoInstant', function() {
-        $get(deferred, scopeFake);
-
-        assert(window.goinstant.connect.called);
-      });
-
-      it('creates and returns a new deferred', function() {
-        var p = $get(deferred, scopeFake);
-
-        assert(deferred.defer.called);
-        assert.equal(p, promise.promise);
-      });
-
-      it('resolves the deferred on a successfull connection', function() {
-        $get(deferred, scopeFake);
-
-        assert(promise.resolve.called);
-      });
-
-      _.each(['rooms', 'token'],function(opt) {
-        it('does not pass the rooms key if it is not in the opts', function() {
-          delete opts.rooms;
-
-          $get(deferred, scopeFake);
-
-          var optsPassedToConnect = window.goinstant.connect.args[0][0];
-
-          assert.isFalse(_.has(optsPassedToConnect, opt));
+          it('throws if passed an invalid callback', function() {
+            assert.exception(function() {
+              goAngular.destroy('foo');
+            }, 'GoAngular' + errors.INVALID_CALLBACK);
+          });
         });
       });
     });

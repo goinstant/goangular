@@ -1,5 +1,12 @@
 # GoAngular Changelog
 
+### v2.0.0
+
+- goConnection has replaced platformProvider, with the introduction of promises
+to the goinstant API, goConnection now provides a simple way to access user,
+rooms and keys.
+- A number of services have been made redundant with promises in core, they've been removed.
+
 ### v1.0.2
 
 - platformProvider now accepts a user parameter vs a token parameter

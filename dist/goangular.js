@@ -8070,7 +8070,7 @@ goangular.provider('goConnection', connectionFactory);
 
 /** Register GoAngular Factory */
 
-goangular.factory('goSyncScope', [
+goangular.factory('GoAngular', [
   '$q',
   '$parse',
   'goConnection',

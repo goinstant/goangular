@@ -66,7 +66,6 @@ describe('GoAngular.goConnection', function() {
         goConnection.$get();
 
         assert(goConnection._connecting);
-        assert.equal(goConnection._connection, 'connection');
         sinon.assert.calledWith(window.goinstant.connect, url, opts);
       });
 

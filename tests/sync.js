@@ -94,7 +94,7 @@ describe('GoAngular.goSync', function() {
         fakeKey.get = sinon.stub().yields(null, collection);
         factory(fakeKey, model).$initialize();
 
-        assert.deepEqual(model, _.merge(collection, model));
+        assert.deepEqual(model, _.merge(model, collection));
       });
 
       it('extends the model if an array is returned', function() {
@@ -109,7 +109,7 @@ describe('GoAngular.goSync', function() {
         assert.deepEqual(model, _.merge(model, obj));
       });
 
-      it(' returns a model', function() {
+      it('returns a model', function() {
         var listenerOpts = {
           local: true,
           bubble: true,

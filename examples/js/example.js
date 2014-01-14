@@ -1,5 +1,5 @@
 /* jshint browser: true */
-/* global require, console, angular, CONFIG */
+/* global require, angular, CONFIG */
 
 /**
  * @fileOverview
@@ -16,32 +16,48 @@ require('goangular');
 // Create an AngularJS application module
 var ourCoolApp = angular.module('ourCoolApp', ['goangular']);
 
-ourCoolApp.config(function(goConnectionProvider) {
-  goConnectionProvider.set(CONFIG.connectUrl);
+ourCoolApp.config(function($goConnectProvider) {
+  $goConnectProvider.set(CONFIG.connectUrl, { user: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dvaW5zdGFudC5uZXQvbWF0dGNyZWFnZXIvRGluZ0RvbmciLCJzdWIiOiJuYSIsImRuIjoiZHVkZSIsImciOltdLCJhdWQiOiJnb2luc3RhbnQubmV0In0.LcvRSDmEj9LHonPhnXv1OWTQ5gjcBnk1QgxH4iYt6PM'});
 });
 
-ourCoolApp.controller('sweetController',
-  function($scope, GoAngular, goConnection) {
+ourCoolApp.controller('sweetController', function($scope, $goConnect, $goKey) {
 
-    goConnection.ready().then(function(connection) {
-      return connection.room('aRoom').join().get('room');
-    }).then(function(aRoom) {
-      console.log('a room:', aRoom);
+  $goConnect.ready().get('rooms').spread(function(lobby) {
+    $scope.todos = $goKey(lobby.key('todos'));
+    $scope.todos.$sync();
+
+    console.log('todos', $scope.todos);
+
+    // // reference nested key via todos
+    $scope.name = $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$key('description').$sync();
+    $scope.$watch('name', function() {
+      console.log(arguments)
     });
 
-    $scope.currentUser = {};
-    $scope.currentUser.displayName = 'Bob';
-    $scope.newTodo = '';
-    $scope.todos = [];
+    // // reference nested key via .key
+    $scope.description = $goKey(lobby.key('todos').key('9edd3cf39e22da900707d9091f90eb52')).$sync();
 
-    $scope.addTodo = function() {
-      if ($scope.newTodo !== '') {
-        $scope.todos.push($scope.newTodo);
-        $scope.newTodo = '';
-      }
-    };
+    setTimeout(function() {
+      $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52/description').$set('jygjygjguj');
+    }, 1000);
+  }).catch(function(err) {
+    console.log(err);
+  }).finally(function() {
+    $scope.$apply();
+  });
 
-    $scope.removeTodo = function(index) {
-      $scope.todos.splice(index, 1);
-    };
+  $scope.addTodo = function() {
+    $scope.todos.$add({
+      timestamp: new Date().getTime(),
+      description: $scope.newTodo,
+      complete: false
+    }).then(function() {
+      console.log(arguments);
+    });
+  };
+
+  $scope.remove = function(key) {
+    $scope.todos.$key(key).$remove();
+  };
+
 });

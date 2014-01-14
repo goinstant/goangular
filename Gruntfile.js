@@ -37,6 +37,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-saucelabs');
+  grunt.loadNpmTasks('grunt-contrib-watch');
 
   grunt.initConfig({
     clean: CLEAN_DIRS,
@@ -61,9 +62,23 @@ module.exports = function(grunt) {
         }
       }
     },
+    watch: {
+      src: {
+        files: ['lib/*.js', 'index.js', 'component.json'],
+        tasks: ['component:build:dev']
+      },
+      reload: {
+        files: ['build/*.js', 'examples/**/*.js'],
+        options: {
+          livereload: true
+        }
+      }
+    }
   });
 
   grunt.registerTask('test', ['build', 'connect', 'saucelabs-mocha']);
+
+  grunt.registerTask('watch' ['watch']);
 
   // Jshint default task
   grunt.registerTask('build', [

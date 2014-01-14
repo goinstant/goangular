@@ -21,7 +21,7 @@ var goangular = angular.module('goangular', []);
 
 /** Services **/
 
-goangular.provider('$goConnect', connectionFactory);
+goangular.provider('$goConnection', connectionFactory);
 
 goangular.factory('$goSync', [
   '$parse',
@@ -31,7 +31,7 @@ goangular.factory('$goSync', [
 
 goangular.factory('$goKey', [
   '$goSync',
-  '$goConnect',
+  '$goConnection',
   keyFactory
 ]);
 

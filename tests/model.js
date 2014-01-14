@@ -17,15 +17,24 @@ describe('GoAngular.goKey', function() {
   var sandbox;
   var fakeKey;
   var $goSync;
-  var $goConnect;
+  var $goConnection;
+  var fakePromise;
   var initialize;
 
   before(function() {
     sandbox = sinon.sandbox.create();
     fakeKey = createFakeKey();
-    initialize =
+
+    fakePromise = {
+      then: function(cb) { cb(); return fakePromise; },
+      fail: sandbox.stub()
+    };
+
+    initialize = sandbox.stub();
+
+    $goConnection = { ready: sinon.stub().returns(fakePromise) };
     $goSync = sandbox.stub().returns({
-      $initialize: sandbox.stub()
+      $initialize: initialize
     });
   });
 
@@ -37,7 +46,7 @@ describe('GoAngular.goKey', function() {
     var model;
 
     beforeEach(function() {
-      model = keyFactory($goSync, $goConnect)(fakeKey);
+      model = keyFactory($goSync, $goConnection)(fakeKey);
     });
 
     it('returns a new instance', function() {
@@ -112,7 +121,7 @@ describe('GoAngular.goKey', function() {
 
       it('throws if a key is not provided', function() {
         assert.exception(function() {
-          var factory = keyFactory($goSync, $goConnect);
+          var factory = keyFactory($goSync, $goConnection);
           factory();
         }, '$goKey' + errors.INVALID_ARGUMENT);
       });

@@ -29,6 +29,8 @@ describe('GoAngular.goSync', function() {
     sandbox = sinon.sandbox.create();
     fakeKey = createFakeKey();
     model = {};
+    model.$$emitter = {};
+    model.$$emitter.emit = sinon.stub();
     primitiveInt = 1;
     primitiveStr = 'foo';
     primitiveBool = false;
@@ -59,6 +61,8 @@ describe('GoAngular.goSync', function() {
       beforeEach(function() {
         sync.$initialize();
         model = {};
+        model.$$emitter = {};
+        model.$$emitter.emit = sinon.stub();
       });
 
       it('retrieves the current value', function() {
@@ -90,14 +94,19 @@ describe('GoAngular.goSync', function() {
         fakeKey.get = sinon.stub().yields(null, collection);
         factory(fakeKey, model).$initialize();
 
-        assert.deepEqual(model, collection);
+        assert.deepEqual(model, _.merge(collection, model));
       });
 
       it('extends the model if an array is returned', function() {
         fakeKey.get = sinon.stub().yields(null, list);
         factory(fakeKey, model).$initialize();
 
-        assert.deepEqual(_.map(model), list);
+        var obj = {};
+        _.each(list, function(value, key) {
+          obj[key] = value;
+        });
+
+        assert.deepEqual(model, _.merge(model, obj));
       });
 
       it(' returns a model', function() {
@@ -114,36 +123,37 @@ describe('GoAngular.goSync', function() {
     });
 
     describe('$$handleUpdate', function() {
+      var model = { $$emitter: {} };
       var keyUpdateData = [
         {
           desc: 'updates the models primitive value for int',
           value: 5,
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: { $value: 5 }
+          expect: _.merge(model, { $value: 5 })
         },
         {
           desc: 'updates the models primitive value for string',
           value: 'foo',
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: { $value: 'foo' }
+          expect: _.merge(model, { $value: 'foo' })
         },
         {
           desc: 'updates the models primitive value for boolean',
           value: false,
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: { $value: false }
+          expect: _.merge(model, { $value: false })
         },
         {
           desc: 'updates the model with object',
           value: { foo: 'bar' },
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: { foo: 'bar' }
+          expect: _.merge(model, { foo: 'bar' })
         },
         {
           desc: 'updates the model with Array',
           value: ['foo', 'bar'],
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: { 0: 'foo', 1: 'bar' }
+          expect: _.merge(model, { 0: 'foo', 1: 'bar' })
         },
         {
           desc: 'will add a child primitive',
@@ -153,7 +163,7 @@ describe('GoAngular.goSync', function() {
             command: 'ADD',
             addedKey: '/currentKey/foo'
           },
-          expect: { foo: 'bar' }
+          expect: _.merge(model, { foo: 'bar' })
         },
         {
           desc: 'will merge changes into an exisiting model',

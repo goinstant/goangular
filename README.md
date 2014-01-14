@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/goinstant/goangular.png)](https://travis-ci.org/goinstant/goangular)
 
-[![GoAngular](https://developers.goinstant.com/beta/static/images/goangular/goangular_logo.png)](https://developers.goinstant.com/v1/GoAngular/index.html)
+[![GoAngular](https://developers.goinstant.com/v1/GoAngular/static/images/goangular_logo.png)](https://www.goangular.org)
 
 [GoAngular](https://developers.goinstant.com/v1/GoAngular/index.html) is an
 open source integration of [GoInstant](https://goinstant.com) with

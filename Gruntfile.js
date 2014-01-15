@@ -38,6 +38,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-saucelabs');
   grunt.loadNpmTasks('grunt-contrib-watch');
+  grunt.loadNpmTasks('grunt-conventional-changelog');
 
   grunt.initConfig({
     clean: CLEAN_DIRS,
@@ -72,6 +73,11 @@ module.exports = function(grunt) {
         options: {
           livereload: true
         }
+      }
+    },
+    changelog: {
+      options: {
+        dest: 'CHANGELOG.md'
       }
     }
   });

@@ -1,7 +1,5 @@
 # model#$remove
 
-## Description
-
 The `$remove` method removes the key associated with the GoAngular model
 and all sub-keys.
 

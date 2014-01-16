@@ -1,7 +1,5 @@
 # $goKey
 
-## Description
-
 The `$goKey` method has only a single required parameter, a `keyName`, which is a string, referencing a specific location
 in your GoInstant applications data structure.  It returns a [GoAngular Model](./model/index.md).
 

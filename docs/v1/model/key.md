@@ -1,7 +1,5 @@
 # model#$key
 
-## Description
-
 The `$key` method creates a new GoAngular model for a child property, based on the
 provided key name.
 

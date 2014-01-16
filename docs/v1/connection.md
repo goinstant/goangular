@@ -4,13 +4,13 @@ The `$goConnection` provider is the lowest point of access to GoInstant in GoAng
 It's used during configuration, and as convenient means of accessing your GoInstant
 connection!
 
-## Table of Contents
+## Contents
 
 1. [Code Example](#code-example)
 2. [$goConnection#$set](#$goconnection#$set)
 3. [$goConnection#$ready](#$goconnection#$ready)
 
-## Code Examples
+## Code Example
 
 ### TL;DR Example
 

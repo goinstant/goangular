@@ -1,7 +1,5 @@
 # model#$omit
 
-## Description
-
 Returns a new object, sans properties prefixed with `$`.
 
 ## Methods

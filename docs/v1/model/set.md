@@ -1,7 +1,5 @@
 # model#$set
 
-## Description
-
 The `$set` method first overwrites the remote value of the key associated with this model.  Once this operation is complete the local
 model object is updated to the new value.
 
@@ -24,7 +22,7 @@ model object is updated to the new value.
 | - `local` ***[default: true]*** is a boolean where, if true, the event produced from this action will trigger the listeners that have opted-in to local events.  The local listener is the mechanism by which `$sync` maintains the state of the model, setting this to false will prevent $sync from updating your local model. |
 | - `bubble` ***[default: true]*** is a boolean where, if true, the event produced from this action will bubble to all of the parent key listeners. |
 | - `expire` ***[default: null]*** is a [time to live](http://en.wikipedia.org/wiki/Time_to_live) on the key in, milliseconds. Once the key expires, a Remove event is triggered. See [expire](https://developers.goinstant.com/v1/javascript_api/key/expire.html) for more information.
-[ - `cascade` ***[default: null]*** is a reference to a key that will cause the set key to be removed whenever the referenced key is removed. |
+| - `cascade` ***[default: null]*** is a reference to a key that will cause the set key to be removed whenever the referenced key is removed. |
 
 ## Returns
 

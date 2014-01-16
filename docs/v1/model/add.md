@@ -1,7 +1,5 @@
 # model#$add
 
-## Description
-
 Working with collections? The `$add` method might be your best friend, it generates a unique name/id, appends the value you provide to the key associated with the
 model in chronological order and returns a promise.  If the model is being
 synchronized (you have invoked the `$sync` method) it will be updated also.

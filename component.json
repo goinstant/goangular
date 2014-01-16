@@ -2,7 +2,7 @@
   "name": "goangular",
   "repo": "goinstant/goangular",
   "description": "AngularJS binding for GoInstant",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "keywords": ["AngularJS", "GoAngular", "realtime", "angular", "sync"],
   "dependencies": {
     "component/emitter": "1.0.1",

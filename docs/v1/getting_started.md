@@ -6,11 +6,11 @@ You can find the source files for this demo (with some slight enhancements) [her
 
 ##  Contents
 
-##### [Sign Up for a GoInstant Account](#sign-up-for-a-goinstant-account)
-##### [Install GoAngular](#install-goangular)
-##### [Create and Synchronize a Collection of Chat Messages](#create-and-synchronize-a-collection-of-chat-messages)
-##### [Add a New Message to Our Collection](#add-a-new-message-to-our-collection)
-##### [This Kitchen Sink Demo](#this-kitchen-sink-demo)
+#### [Sign Up for a GoInstant Account](#sign-up-for-a-goinstant-account)
+#### [Install GoAngular](#install-goangular)
+#### [Create and Synchronize a Collection of Chat Messages](#create-&-synchronize-a-collection-of-chat-messages)
+#### [Add a New Message to Our Collection](#add-a-new-message-to-our-collection)
+#### [The Kitchen Sink Demo](#the-kitchen-sink-demo)
 
 ## Sign Up for a GoInstant Account
 
@@ -20,21 +20,21 @@ GoAngular requires a GoInstant account. Head over to our [sign up page](https://
 
 We’ll need this later to configure our GoInstant connection.
 
-### Install GoAngular
+## Install GoAngular
 
 The simplest way to get started with GoAngular is to include the GoInstant and GoAngular libraries from their respective [CDNs](https://cdn.goinstant.net/), but the [bower](http://bower.io/) and [component.io](http://component.io/) package managers are also supported:
 
-##### CDN
+#### CDN
 
 ```<script src="https://cdn.goinstant.net/v1/platform.min.js"></script>```
 
 ```<script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>```
 
-##### Bower
+#### Bower
 
 `bower install goangular`
 
-##### Component
+#### Component
 
 `component install goinstant/goangular`
 
@@ -146,7 +146,7 @@ chatApp.controller('ChatCtrl', function($scope, $goKey) {
 
 Each time an item is added, our model is updated, and so is (of course) our view!
 
-### The Kitchen Sink
+## The Kitchen Sink
 
 Let's see it all tied together:
 

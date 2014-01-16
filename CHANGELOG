@@ -1,5 +1,9 @@
 # GoAngular Changelog
 
+### v3.0.1
+
+- Fixing Getting-Started Links
+
 ### v3.0.0
 
 - The $goKey service is now available, it is used to create a Model.  The Model

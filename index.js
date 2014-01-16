@@ -5,39 +5,35 @@
 /**
  * @fileOverview
  *
- * Responsible for creating the goinstant AngularJS module and registering
- * the goConnect provider and goAngular scope synchronization service.
- *
- * @example
- *   var app = angular.module('app', ['goinstant']);
- *
- *   app.config(function(goConnectProvider) {
- *    goConnectProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
- *   });
- *
- *   app.controller('ctrlName',
- *     ['$scope', 'goAngular', function($scope, goAngular) {
- *
- *     var goAngular = new goAngular($scope,'uniqueNamespace');
- *
- *     goAngular.initialize();
- *   }]);
- */
+ * Contains Angular service and filter registrations
+ **/
 
 'use strict';
 
 var connectionFactory = require('./lib/connection_factory');
 var goAngularFactory = require('./lib/go_angular_factory');
+var syncFactory = require('./lib/sync_factory');
+var keyFactory = require('./lib/key_factory');
 
-/** Create AngularJS goangular module */
+/** goangular module registration */
 
 var goangular = angular.module('goangular', []);
 
-/** Register connection Service */
+/** Services **/
 
-goangular.provider('goConnection', connectionFactory);
+goangular.provider('$goConnection', connectionFactory);
 
-/** Register GoAngular Factory */
+goangular.factory('$goSync', [
+  '$parse',
+  '$timeout',
+  syncFactory
+]);
+
+goangular.factory('$goKey', [
+  '$goSync',
+  '$goConnection',
+  keyFactory
+]);
 
 goangular.factory('GoAngular', [
   '$q',

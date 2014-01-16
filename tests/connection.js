@@ -13,8 +13,10 @@ describe('GoAngular.goConnection', function() {
   var Connection = require('goangular/lib/connection');
 
   var sandbox;
+  var connection;
+  var connect;
   var url = 'url';
-  var opts = { foo: 'bar' };
+  var opts = { user: 'bar' };
 
   beforeEach(function() {
     sandbox = sinon.sandbox.create();
@@ -38,46 +40,49 @@ describe('GoAngular.goConnection', function() {
       assert.equal(connection1, connection2);
     });
 
-    describe('configuration', function() {
-
-      it('extends the connection object with url and options', function() {
-        var goConnection = new Connection();
-
-        goConnection.set(url, opts);
-
-        assert.equal(goConnection._opts, opts);
-        assert.equal(goConnection._url, url);
-        assert(goConnection._configured);
-      });
-    });
-
     describe('dependency injection', function() {
       var get, goConnection;
 
       beforeEach(function() {
         goConnection = new Connection();
         get = sandbox.stub().returns('connection');
+        connection = {
+          room: sinon.stub().returns(connection),
+          key: sinon.stub().returns(connection)
+        };
+        connect = sandbox.stub().returns(connection);
+
         window.goinstant = {};
-        window.goinstant.connect = sandbox.stub().returns({ get: get });
+        window.goinstant.Connection = sandbox.stub().returns({
+          get: get,
+          connect: connect
+        });
+      });
+
+      it('extends the connection object with url and options', function() {
+        var goConnection = new Connection();
+
+        goConnection.$set(url, opts);
+
+        assert.equal(goConnection._opts, opts);
+        assert.equal(goConnection._url, url);
+        assert(goConnection._configured);
       });
 
       it('connects to goinstant', function() {
-        goConnection.set(url, opts);
+        goConnection.$set(url, opts);
         goConnection.$get();
 
-        assert(goConnection._connecting);
-        assert.equal(goConnection._connection, 'connection');
-        sinon.assert.calledWith(window.goinstant.connect, url, opts);
+        sinon.assert.calledWith(connect, opts);
       });
 
       describe('error cases', function() {
 
         it('throws if goinstant is not available', function() {
           window.goinstant = null;
-          goConnection.set(url, opts);
 
           assert.exception(function() {
-            goConnection.$get();
+            goConnection.$set(url, opts);
           }, 'GoAngular requires the GoInstant library.');
         });
 

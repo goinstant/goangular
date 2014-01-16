@@ -1,21 +1,21 @@
-# goConnection
+# $goConnnection
 
-The goConnection provider is the lowest point of access to GoInstant in GoAngular.
+The `$goConnection` provider is the lowest point of access to GoInstant in GoAngular.
 It's used during configuration, and as convenient means of accessing your GoInstant
 connection!
 
 ## Table of Contents
 
 1. [Code Example](#code-example)
-2. [goConnection#set](#goconnection#set)
-3. [goConnection#ready](#goconnection#ready)
+2. [$goConnection#$set](#$goconnection#$set)
+3. [$goConnection#$ready](#$goconnection#$ready)
 
 ## Code Examples
 
 ### TL;DR Example
 
-`goConnectionProvider.set` is used just once during configuration,
-`goConnection.ready` can be used in any Angular controller or service to access
+`$goConnectionProvider.$set` is used just once during configuration,
+`$goConnection.$ready` can be used in any Angular controller or service to access
 your connection!
 
 ```js
@@ -23,13 +23,13 @@ your connection!
 angular.module('yourApp', ['goangular'])
 
   // Configure your GoInstant Connection
-  .config(function(goConnectionProvider) {
-    goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
   })
 
-  // Inject goConnection into your controller
-  .controller('yourController', function(goConnection) {
-    goConnection.ready().then(function(connection) {
+  // Inject $goConnection into your controller
+  .controller('yourController', function($goConnection) {
+    $goConnection.$ready().then(function(connection) {
       // Use connection to manipulate rooms & keys
     });
   });
@@ -37,14 +37,14 @@ angular.module('yourApp', ['goangular'])
 
 ### Extended Example
 
-To use `goConnection` you must include the Angular, GoInstant, and GoAngular
+To use `$goConnection` you must include the Angular, GoInstant, and GoAngular
 JavaScript libraries.
 
 ```js
 <!DOCTYPE html>
 <html ng-app="GoAngularExample">
   <head>
-    <title>GoAngular goConnection Provider Example</title>
+    <title>GoAngular $goConnection Provider Example</title>
     <!-- Required JavaScript libraries -->
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
     <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
@@ -54,13 +54,13 @@ JavaScript libraries.
       angular.module('GoAngularExample', ['goangular'])
 
         // Configure the connection with the connect url
-        .config(function(goConnectionProvider) {
-          goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+        .config(function($goConnectionProvider) {
+          $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
         })
 
-        // Access that connection via. goConnection.ready!
-        .controller('completeControl', function(goConnection) {
-          goConnection.ready().then(function(connection) {
+        // Access that connection via. $goConnection.ready!
+        .controller('completeControl', function($goConnection) {
+          $goConnection.$ready().then(function(connection) {
             return connection.room('a-room').join().get('room');
           })
           .then(function(aRoom) {
@@ -78,7 +78,7 @@ JavaScript libraries.
 </html>
 ```
 
-## goConnection#set
+## $goConnection#$set
 
 ### Description
 
@@ -86,8 +86,8 @@ Used during Angular's configuration stage to set your connection URL and options
 
 ### Methods
 
-- ###### **goConnectionProvider.set(connectUrl)**
-- ###### **goConnectionProvider.set(connectUrl, optionsObject)**
+- ###### **$goConnectionProvider.$set(connectUrl)**
+- ###### **$goConnectionProvider.$set(connectUrl, optionsObject)**
 
 ### Parameters
 
@@ -102,19 +102,18 @@ Used during Angular's configuration stage to set your connection URL and options
 | An object with three properties: `user`, `room` and `rooms`. |
 | - `user` is an optional [JWT](../../guides/users_and_authentication.md) or Object. If not provided, the user will connect as a guest. If provided and an Object, the user will connect as a guest with the given default user properties. |
 | - `room` is an optional string. If provided, the [Room](../../javascript_api/rooms/index.md) with the provided name will be joined, otherwise the 'lobby' Room will be joined. |
-| - `rooms` is an optional array if strings. If provided, all rooms specified will be joined. |
 
 ### Example
 
 ```js
 // Specify GoAngular as a dependency and configure your connection
 angular.module('yourApp', ['goangular'])
-  .config(function(goConnectionProvider) {
-    goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
   });
 ```
 
-## goConnection#ready
+## $goConnection#$ready
 
 ### Description
 
@@ -123,7 +122,7 @@ connection.
 
 ### Methods
 
-- ###### **goConnection.ready()**
+- ###### **$goConnection.$ready()**
 
 ### Returns
 
@@ -137,11 +136,11 @@ connection.
 ```js
 // Specify GoAngular as a dependency and configure your connection
 angular.module('yourApp', ['goangular'])
-  .config(function(goConnectionProvider) {
-    goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
   })
-  .controller('completeControl', function(goConnection) {
-    goConnection.ready().then(
+  .controller('completeControl', function($goConnection) {
+    $goConnection.$ready().then(
       function(connection) {
         // Connected
       },

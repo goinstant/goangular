@@ -2,7 +2,7 @@
 
 GoAngular is a GoInstant-powered data synchronization and storage integration built for Angular. It’s the perfect companion for building realtime, collaborative apps. This tutorial will walk you through creating your first GoAngular application and address the massive shortage of chat applications on the web. (OK, we know there isn’t a shortage of chat apps on the web, but there aren’t any like this! OK, there are...but this uses GoAngular, which is awesome, trust me.)
 
-You can find the source files for this demo (with some slight enhancements) [here](https://github.com/mattcreager/goangular-chat-example), visit the [live demo](http://goangular-chat-example.herokuapp.com/) and [watch the screen cast too]()
+You can find the source files for this demo (with some slight enhancements) [here](https://github.com/mattcreager/goangular-chat-example), visit the [live demo](http://goangular-chat-example.herokuapp.com/) and [watch the screen cast too](http://www.youtube.com/watch?v=u2jCgJG-zSo)
 
 ##  Contents
 

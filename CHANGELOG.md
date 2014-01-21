@@ -1,5 +1,3 @@
-# GoAngular Changelog
-
 ### v3.0.1
 
 - Fixing Getting-Started Links

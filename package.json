@@ -34,7 +34,8 @@
     "underscore.string": "2.3.3",
     "q": "~0.9.7",
     "grunt-contrib-watch": "~0.5.3",
-    "load-grunt-tasks": "~0.2.0"
+    "load-grunt-tasks": "~0.2.0",
+    "grunt-conventional-changelog": "~1.0.0"
   },
   "goinstant": {
     "namespace": "integrations"

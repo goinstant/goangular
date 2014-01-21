@@ -70,6 +70,11 @@ module.exports = function(grunt) {
           livereload: true
         }
       }
+    },
+    changelog: {
+      options: {
+        dest: 'CHANGELOG.md'
+      }
     }
   });
 

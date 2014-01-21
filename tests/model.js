@@ -32,7 +32,7 @@ describe('GoAngular.goKey', function() {
 
     initialize = sandbox.stub();
 
-    $goConnection = { ready: sinon.stub().returns(fakePromise) };
+    $goConnection = { $ready: sinon.stub().returns(fakePromise) };
     $goSync = sandbox.stub().returns({
       $initialize: initialize
     });

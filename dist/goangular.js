@@ -8036,39 +8036,35 @@ require.register("goangular/index.js", function(exports, require, module){
 /**
  * @fileOverview
  *
- * Responsible for creating the goinstant AngularJS module and registering
- * the goConnect provider and goAngular scope synchronization service.
- *
- * @example
- *   var app = angular.module('app', ['goinstant']);
- *
- *   app.config(function(goConnectProvider) {
- *    goConnectProvider.set('https://goinstant.goinstant.net/YOURAPP/YOURROOM');
- *   });
- *
- *   app.controller('ctrlName',
- *     ['$scope', 'goAngular', function($scope, goAngular) {
- *
- *     var goAngular = new goAngular($scope,'uniqueNamespace');
- *
- *     goAngular.initialize();
- *   }]);
- */
+ * Contains Angular service and filter registrations
+ **/
 
 'use strict';
 
 var connectionFactory = require('./lib/connection_factory');
 var goAngularFactory = require('./lib/go_angular_factory');
+var syncFactory = require('./lib/sync_factory');
+var keyFactory = require('./lib/key_factory');
 
-/** Create AngularJS goangular module */
+/** goangular module registration */
 
 var goangular = angular.module('goangular', []);
 
-/** Register connection Service */
+/** Services **/
 
-goangular.provider('goConnection', connectionFactory);
+goangular.provider('$goConnection', connectionFactory);
 
-/** Register GoAngular Factory */
+goangular.factory('$goSync', [
+  '$parse',
+  '$timeout',
+  syncFactory
+]);
+
+goangular.factory('$goKey', [
+  '$goSync',
+  '$goConnection',
+  keyFactory
+]);
 
 goangular.factory('GoAngular', [
   '$q',
@@ -8142,19 +8138,45 @@ module.exports = Connection;
  *      goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
  *    })
  *    .controller('YourCtrl', function(goConnection) {
- *      goConnection.ready().then(function(connection) {
+ *      goConnection.$ready().then(function(connection) {
  *        // connected
  *      });
  *    });
  */
 function Connection() {
   _.extend(this, {
-    _opts: {},
-    _connection: null,
-    _connecting: false,
-    _configured: false
+    $$opts: {},
+    $$connection: null,
+    $$connecting: false,
+    $$configured: false,
+    $$rooms: {}
   });
 }
+
+/**
+ * Configure & connect to GoInstant
+ * @param {String} url - Registered application URL
+ * @param {Object} [opts]
+ * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
+ * @config {String} room - is an optional room name, defaults to 'lobby'
+ * with the room option
+ */
+Connection.prototype.$connect = function(url, opts) {
+  if (this.$$configured) {
+    throw new Error(
+      '$connect should not be used in conjunction with $set or invoked twice'
+    );
+  }
+
+  if (this.$$connection) {
+    return this.$$connection;
+  }
+
+  this.$set(url, opts);
+  this.$$connect();
+
+  return this.$$connection;
+};
 
 /**
  * Configure a future goinstant connection
@@ -8162,13 +8184,17 @@ function Connection() {
  * @param {Object} [opts]
  * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
  * @config {String} room - is an optional room name, defaults to 'lobby'
- * @config {Array} rooms - An array of room names cannot be used in conjunction
  * with the room option
  */
-Connection.prototype.set = function(url, opts) {
-  this._configured = true;
+Connection.prototype.$set = function(url, opts) {
+  if (!window.goinstant) {
+    throw new Error('GoAngular requires the GoInstant library.');
+  }
 
-  _.extend(this, { _opts: (opts || {}), _url: url, _configured: true });
+  this.$$configured = true;
+  this.$$conn = new goinstant.Connection(url);
+
+  _.extend(this, { $$opts: (opts || {}), $$url: url, $$configured: true });
 };
 
 /**
@@ -8180,32 +8206,65 @@ Connection.prototype.$get = function() {
     throw new Error('GoAngular requires the GoInstant library.');
   }
 
-  if (!this._connecting) {
-    this._connect();
+  if (this.$$configured && !this.$$connecting) {
+    this.$$connect();
   }
 
   return this;
+};
+
+Connection.prototype.$key = function(keyName, roomName) {
+  if (!this.$$configured) {
+    throw new Error(
+      'You must configure you connection first. ' +
+      'Find additional details: ' +
+      'https://developers.goinstant.com/v1/GoAngular/connection.html');
+  }
+
+  roomName = roomName || this.$$opts.room || 'lobby';
+
+  if (!this.$$rooms[roomName]) {
+    var self = this;
+
+    this.$$rooms[roomName] = true;
+    this.$$connection = this.$$connection.then(function() {
+      return self.$$conn.room(roomName).join().then(function() {
+        return self.$$conn;
+      });
+    });
+  }
+
+  return this.$$conn.room(roomName).key(keyName);
 };
 
 /**
  * Responsible for connecting to goinstant, assigns a promise to the private
  * connection property
  */
-Connection.prototype._connect = function() {
-  if (!this._configured) {
+Connection.prototype.$$connect = function() {
+  if (!this.$$configured) {
     throw new Error('The GoInstant connection must be configured first.');
   }
 
-  this._connecting = true;
-  this._connection = goinstant.connect(this._url, this._opts).get('connection');
+  var user  = this.$$opts.user || {};
+
+  this.$$connecting = true;
+  this.$$connection = this.$$conn.connect(user || {}, function() {});
 };
 
 /**
  * @returns {Object} connection - a promise which will be resolved once a
  * connection has been established or rejected if an async error is encountered
  */
-Connection.prototype.ready = function() {
-  return this._connection;
+Connection.prototype.$ready = function() {
+  if (!this.$$configured) {
+    throw new Error(
+      'You must configure you connection first.' +
+      'Find additional details:' +
+      ' https://developers.goinstant.com/v1/GoAngular/connection.html');
+  }
+
+  return this.$$connection;
 };
 
 });
@@ -8229,6 +8288,432 @@ module.exports = function connectionFactory() {
   connection = connection || new Connection();
 
   return connection;
+};
+
+});
+require.register("goangular/lib/model.js", function(exports, require, module){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Model class, an Angular friendly key wrapper
+ */
+
+'use strict';
+
+/* @todo slowly phase out external dependencies */
+var _ = require('lodash');
+var Emitter = require('emitter');
+
+module.exports = Model;
+
+var LOCAL_EVENTS = ['ready', 'error'];
+
+/**
+ * Instantiated by the key_factory or $key method the constructor accepts a key,
+ * which it extends with synchronization and convenience methods.
+ *
+ * @public
+ * @constructor
+ * @class
+ * @param {Object} $goSync - Responsible for synchronizing an Angular model,
+ * with an angular key.
+ * @param {Object} $goConnection - GoInstant connection service
+ * @param {Object|String} key - GoInstant Key or string key name
+ * @param {String} room - Room name
+ * @example
+ *   $scope.todos = $goSync('todos').$sync();
+ */
+function Model($goSync, $goConnection, key, room) {
+  _.bindAll(this);
+
+  // If a key is provided, use it, otherwise create one
+  key = (_.isObject(key) ? key : $goConnection.$key(key, room));
+
+  _.extend(this, {
+    $$goSync: $goSync,
+    $$goConnection: $goConnection,
+    $$key: key,
+    $$emitter: new Emitter()
+  });
+}
+
+/**
+ * Primes our model, fetching the current key value and monitoring it for
+ * changes.
+ */
+Model.prototype.$sync = function() {
+  var self = this;
+
+  var connected = self.$$goConnection.$ready();
+
+  connected.then(function() {
+    self.$$sync = self.$$goSync(self.$$key, self);
+    self.$$sync.$initialize();
+  });
+
+  connected.fail(function(err) {
+    self.$$emitter.emit('error', err);
+  });
+
+  return self;
+};
+
+/**
+ * Create and return a new instance of Model, with a relative key.
+ * @public
+ * @param {String} keyName - Key name
+ */
+Model.prototype.$key = function(keyName) {
+  var key = this.$$key.key(keyName);
+
+  return new Model(this.$$goSync, this.$$goConnection, key);
+};
+
+/**
+ * Give the current key a new value
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+Model.prototype.$set = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$goConnection.$ready().then(function() {
+    return self.$$key.set(value, opts);
+  });
+};
+
+/**
+ * Add a generated id with a
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+Model.prototype.$add = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$goConnection.$ready().then(function() {
+    return self.$$key.add(value, opts);
+  });
+};
+
+/**
+ * Remove this key
+ * @public
+ * @returns {Object} promise
+ */
+Model.prototype.$remove = function(opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$goConnection.$ready().then(function() {
+    return self.$$key.remove(opts);
+  });
+};
+
+/**
+ * Returns a new object that does not contain prefixed methods
+ * @public
+ * @returns {Object} model
+ */
+Model.prototype.$omit = function() {
+  return _.omit(this, function(value, key){
+    return _.first(key) === '$';
+  });
+};
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ */
+Model.prototype.$on = function(eventName, listener) {
+  if (!_.contains(LOCAL_EVENTS, eventName)) {
+    return this.$$key.on(eventName, listener);
+  }
+
+  this.$$emitter.on(eventName, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ */
+Model.prototype.$off = function(eventName, listener) {
+  if (!_.contains(LOCAL_EVENTS, eventName)) {
+    return this.$$key.off(eventName, listener);
+  }
+
+  this.$$emitter.off(eventName, listener);
+};
+
+});
+require.register("goangular/lib/sync.js", function(exports, require, module){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Sync class, used to create a binding between
+ * a model on $scope and a GoInstant key
+ */
+
+'use strict';
+
+/* @todo slowly phase out external dependencies */
+var _ = require('lodash');
+var normalize = require('./util/normalize');
+
+module.exports = Sync;
+
+/**
+ * The Sync class is responsible for synchronizing the state of a local model,
+ * with that of a GoInstant key.
+ *
+ * @constructor
+ * @param {Object} $parse - Angular parse object
+ * @param {Object} $timeout - Angular timeout object
+ * @param {Object} key - Key unique to the controller scope
+ * @param {Object} model - local object
+ */
+function Sync($parse, $timeout, key, model) {
+  _.bindAll(this, [
+    '$initialize',
+    '$$handleUpdate',
+    '$$handleRemove'
+  ]);
+
+  _.extend(this, {
+    $parse: $parse,
+    $timeout: $timeout,
+    $$key: key,
+    $$model: model,
+    $$registry: {}
+  });
+}
+
+/**
+ * Creates an association between a local object and a key in goinstant by
+ * fetching an existing value and monitoring the key.
+ */
+Sync.prototype.$initialize = function() {
+  var self = this;
+
+  self.$$key.get(function(err, value) {
+    if (err) {
+      return self.$$model.$$emitter.emit('error', err);
+    }
+
+    self.$$registry = {
+      set: self.$$handleUpdate,
+      add: self.$$handleUpdate,
+      remove: self.$$handleRemove
+    };
+
+    _.each(self.$$registry, function(fn, event) {
+      self.$$key.on(event, {
+        local: true,
+        bubble: true,
+        listener: fn
+      });
+    });
+
+    if (!_.isObject(value)) {
+      value = { $value: value };
+    }
+
+    self.$timeout(function() {
+      _.merge(self.$$model, value);
+      self.$$model.$$emitter.emit('ready');
+    });
+  });
+};
+
+/**
+ * When the value of the key has changed, we update our local model object
+ * @private
+ * @param {*} value - New key value
+ * @param {Object} context - Information related to the key being set
+ */
+Sync.prototype.$$handleUpdate = function(value, context) {
+  var self = this;
+  var targetKey = (context.command ==='ADD') ? context.addedKey : context.key;
+
+  if (!_.isObject(value) && targetKey === context.currentKey) {
+    return self.$timeout(function() {
+      self.$$model.$value = value;
+
+      _.each(self.$$model, function(value, key, model) {
+        if (_.first(key) !== '$') {
+          delete model[key];
+        }
+      });
+    });
+  }
+
+  value = normalize(_.cloneDeep(value), context);
+
+  self.$timeout(function() {
+    _.merge(self.$$model, value);
+    delete self.$$model.$value;
+  });
+};
+
+/**
+ * When a key or one of it's children is destroyed we persist locally
+ * @private
+ * @param {*} value - New key value
+ * @param {Object} context - Information related to the key being set
+ */
+Sync.prototype.$$handleRemove = function(value, context) {
+  var self = this;
+
+  if (context.currentKey === context.key) {
+
+    self.$timeout(function() {
+      if (self.$$model.$value) {
+        delete self.$$model.$value;
+        return;
+      }
+
+      _.each(self.$$model, function(value, key, model) {
+        if (_.first(key) !== '$') {
+          delete model[key];
+        }
+      });
+    });
+
+    _.each(self.$$registry, function (fn, event) {
+      self.$$key.off(event, fn);
+    });
+
+    return;
+  }
+
+  // Determine the relative path between the key we are listening too and the
+  // origin of the event.
+  var toPath = context.key.replace(context.currentKey, ''); // resolve path
+  toPath = toPath.replace(/^\/|\/$/g, ''); // trim trailing and starting slash
+
+  var sections = toPath.split('/');
+  var target = this.$$model;
+
+  // Loop over all the keys we need to navigate and traverse down until
+  // we're at the parent of the section being removed.
+  var ptr = [target]; // references to parts of the cache object
+  var parentIndex = sections.length - 1;
+
+  for (var i = 0; i < parentIndex; i++) {
+    target = target[sections[i]];
+
+    if (target === undefined) {
+      return this._resync();
+    }
+
+    ptr.push(target);
+  }
+
+  self.$timeout(function() {
+    delete target[sections[parentIndex]];
+  });
+
+  // Now that we've removed the root, we need to crawl back up the tree
+  // and collapse each node that no longer has any leaf-nodes.
+  self.$timeout(function() {
+    for (var section, j = parentIndex - 1; j >= 0; j--) {
+      section = sections[j];
+
+      if (_.size(ptr[j][section]) === 0) {
+          delete ptr[j][section];
+      }
+    }
+  });
+};
+
+});
+require.register("goangular/lib/sync_factory.js", function(exports, require, module){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Sync factory, responsible for creating and returning
+ * instances of Sync.
+ */
+
+'use strict';
+
+var Sync = require('./sync');
+
+/**
+ * syncFactory
+ * @public
+ * @param {Object} $parse - Angular parse
+ * @param {Object} $timeout - Angular timeout
+ * @returns {Function} option validation & instance creation
+ */
+module.exports = function syncFactory($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function(key, model) {
+    return new Sync($parse, $timeout, key, model);
+  };
+};
+
+});
+require.register("goangular/lib/key_factory.js", function(exports, require, module){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Sync factory, responsible for creating and returning
+ * instances of Sync.
+ */
+
+'use strict';
+
+var Model = require('./model');
+var errors = require('./errors');
+var _ = require('lodash');
+
+/**
+ * keyFactory
+ * @public
+ * @param {Object} $goSync - Responsible for synchronizing an Angular model,
+ * with an angular key.
+ * @param {Object} $goConnection - GoInstant connection service
+ * @returns {Function} option validation & instance creation
+ */
+module.exports = function keyFactory($goSync, $goConnection) {
+
+  /**
+   * @public
+   * @param {Object|String} key - key name or key object
+   * @param {String} room - Room name
+   */
+  return function(key, room) {
+
+    if (!_.isString(key) && !_.isObject(key)) {
+      throw errors.create('$goKey', 'INVALID_ARGUMENT');
+    }
+
+    if (room && !_.isString(room)) {
+      throw errors.create('$goKey', 'INVALID_ARGUMENT');
+    }
+
+    return new Model($goSync, $goConnection, key, room);
+  };
 };
 
 });
@@ -8439,15 +8924,14 @@ GoAngular.prototype.initialize = function() {
 GoAngular.prototype._connect = function(cb) {
   var self = this;
 
-  self._goConnection.ready()
-    .then(function(connection) {
+  self._goConnection.ready().get('connection').then(function(connection) {
+
       return connection.room((self._room || 'lobby')).join().get('room');
-    })
-    .then(function(room) {
+    }).then(function(room) {
+
       self._key = room.key(GOINSTANT_KEY_NAMESPACE).key(self._namespace);
       cb(null);
-    })
-    .fail(cb);
+    }).fail(cb);
 };
 
 /**
@@ -8699,6 +9183,7 @@ module.exports = ModelBinder;
 
 /**
  * ModelBinder instantiated with a controllers scope and unique key
+ *
  * @private
  * @constructor
  * @param {Object} $scope - Angular controller scope
@@ -8736,7 +9221,7 @@ ModelBinder.prototype.newBinding = function(modelName, cb) {
     }
   );
 
-  async.parallel(boundFuncs, cb);
+  async.series(boundFuncs, cb);
 };
 
 /**
@@ -8765,8 +9250,7 @@ ModelBinder.prototype._generateModel = function(modelName) {
  */
 ModelBinder.prototype._firstFetch = function(model, next) {
   var self = this;
-
-  var key = this._key.key(model.name);
+  var key = (this._single ? this._key : this._key.key(model.name));
   var modelDefault = model.get();
 
   // fetch the initial value of the model
@@ -8802,11 +9286,15 @@ ModelBinder.prototype._firstFetch = function(model, next) {
  */
 ModelBinder.prototype._localMonitor = function(model, next) {
   var self = this;
-  var key = self._key.key(model.name);
+  var key = this._key.key(model.name);
 
   // stopWatch represents a function that when invoked removes our listener
   var stopWatch = self._scope.$watch(model.name, function(newVal, oldVal) {
-    if (!_.isUndefined(newVal) && newVal !== oldVal) {
+    if (newVal === oldVal) {
+      return;
+    }
+
+    if (!_.isUndefined(newVal)) {
       return bounceProtection.local(function() {
         key.set(newVal);
       });
@@ -8980,6 +9468,62 @@ errors.create = function(method, type) {
   }
 
   return new Error(method + '' + errorMap[type]);
+};
+
+});
+require.register("goangular/lib/util/normalize.js", function(exports, require, module){
+/* jshint browser:true */
+/* global module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the normalize function, responsible for preparing a remote
+ * object to be merged into it's local counterpart
+ */
+
+'use strict';
+
+/**
+ * Normalizes the data returned from a event handler to get around the bug that
+ * the handler does not set the full mutated object it just returns the
+ * immediate value.
+ *
+ * Therefore, rebuild the object so it can cleanly be merged!
+ *
+ * @param {*} value the value returned to the handler
+ * @param {Object} context the context returned to the handler
+ */
+module.exports = function normalize(value, context) {
+
+  if (!context.currentKey) {
+    throw new Error('An invalid context was provided during normalization.');
+  }
+
+  // Build up the value until the key and the curPath are the same, then we've
+  // normalized the data properly.
+  var segment;
+  var newValue;
+  var i;
+
+  // Get the originating key path
+  var curPath = (context.addedKey) ? context.addedKey : context.key;
+
+  while (curPath !== context.currentKey) {
+
+    // Get the trailing path segment
+    i = curPath.lastIndexOf('/');
+    segment = curPath.slice(curPath.lastIndexOf('/'));
+    segment = segment.replace('/','');
+
+    newValue = {};
+    newValue[segment] = value;
+    value = newValue;
+
+    curPath = curPath.slice(0, i);
+  }
+
+  return value;
 };
 
 });

@@ -146,7 +146,7 @@ chatApp.controller('ChatCtrl', function($scope, $goKey) {
 
 Each time an item is added, our model is updated, and so is (of course) our view!
 
-## The Kitchen Sink
+## The Kitchen Sink Demo
 
 Let's see it all tied together:
 

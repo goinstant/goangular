@@ -88,11 +88,11 @@ configuration stage, in these situations you'll use `$connect`.
 
 `$connect` accepts two parameters a `connectUrl` and an `optionsObject`.  The object has two optional
 properties: `user` which can be a [JWT](../../guides/users_and_authentication.md)
-or a set of default user properties and `room`, which is the name of the room you wish
+or a set of default user properties and [room](../../javascript_api/rooms/index.md), which is the name of the room you wish
 to use.  By default you join the 'Lobby'.
 
-A connection once established can still be shared among controllers using the `$ready()`
-method, which returns a promise.
+The `$ready` method cannot ***currently*** be called until after the `$connect`
+method has been invoked.
 
 **Note: You should not use this method in conjunction with
 `goConnectionProvider.$set`**

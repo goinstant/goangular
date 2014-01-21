@@ -66,7 +66,7 @@ describe('GoAngular.goConnection', function() {
 
         assert.equal(goConnection.$$opts, opts);
         assert.equal(goConnection.$$url, url);
-        assert(goConnection.$$configured);
+        assert.equal(goConnection.$$configured, true);
       });
 
       it('connects to goinstant', function() {

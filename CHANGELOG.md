@@ -1,3 +1,19 @@
+<a name="v3.1.0"></a>
+## v3.1.0 (2014-01-21)
+
+
+#### Bug Fixes
+
+* **goangular_frontpage:** Updating points, and removing links ([25524eef](http://github.com/goinstant/goangular/commit/25524eefefef2767277e1079a3a820d4f817505b))
+* **chat_example:** ng-controller added to example
+
+
+#### Features
+
+* **$goConnection:** Enable deferred conn initialization ([b350c96a](http://github.com/goinstant/goangular/commit/b350c96a22b620bd820da22f0d6bebd3901206dd))
+* **grunt-conventional-changelog:** Added generatable change-logs([0d77272](https://github.com/PascalPrecht/goangular/commit/0d77272ca388b9aea15844f638e3dcfdee91e5ed))
+* **load-grunt-tasks:** Auto load grunt tasks([e6925a2](https://github.com/PascalPrecht/goangular/commit/e6925a23917729a6beffe6b57ded2052d66c683b))
+
 ### v3.0.1
 
 - Fixing Getting-Started Links

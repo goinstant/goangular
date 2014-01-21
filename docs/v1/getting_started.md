@@ -1,113 +1,209 @@
 # Getting Started
 
-GoAngular represents the intersection between GoInstant (our real-time
-backend) & Angular (a client-side framework created by Google).
+GoAngular is a GoInstant-powered data synchronization and storage integration built for Angular. It’s the perfect companion for building realtime, collaborative apps. This tutorial will walk you through creating your first GoAngular application and address the massive shortage of chat applications on the web. (OK, we know there isn’t a shortage of chat apps on the web, but there aren’t any like this! OK, there are...but this uses GoAngular, which is awesome, trust me.)
 
-## Build an app in 3 simple steps
+You can find the source files for this demo (with some slight enhancements) [here](https://github.com/mattcreager/goangular-chat-example), visit the [live demo](http://goangular-chat-example.herokuapp.com/) and [watch the screen cast too](http://www.youtube.com/watch?v=u2jCgJG-zSo)
 
-Follow the guide below to build your first  GoAngular app: a multi-user,
-real-time synchronized form!
+##  Contents
 
-**First, you’ll need to [sign up](http://goinstant.com/signup). Don’t worry, we’ll wait…**
+#### [Sign Up for a GoInstant Account](#sign-up-for-a-goinstant-account)
+#### [Install GoAngular](#install-goangular)
+#### [Create and Synchronize a Collection of Chat Messages](#create-&-synchronize-a-collection-of-chat-messages)
+#### [Add a New Message to Our Collection](#add-a-new-message-to-our-collection)
+#### [The Kitchen Sink Demo](#the-kitchen-sink-demo)
 
-(Please make sure you verify your email address, otherwise you won’t be able to connect to GoInstant.)
+## Sign Up for a GoInstant Account
 
-### Step 1: Create the form
+GoAngular requires a GoInstant account. Head over to our [sign up page](https://goinstant.com/signup) and create one (you can use your GitHub account if you have one). Once you’ve signed up, create a new app in your dashboard. Each application has a unique Connect URL (click the app name that you just created to grab it):
 
-Let's spin up an Angular powered form:
+`https://goinstant.net/ACCOUNT_NAME/APP_NAME`
 
-```html
-<!DOCTYPE html>
-<html ng-app="FormSync">
-  <head>
-    <title>GoAngular Form Synchronization</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
-  </head>
-  <body>
-    <div ng-controller="SyncCtrl">
-      <input ng-model="name" type="text"/>
-      <br>
-      <p>Name is: {{ name }}</p>
-    </div>
-    <script>
-      angular.module('FormSync', []);
+We’ll need this later to configure our GoInstant connection.
 
-      function SyncCtrl($scope) {
-        $scope.name = '';
-      }
-    </script>
-  </body>
-</html>
-```
+## Install GoAngular
 
-### Step 2: Connect to GoInstant
+The simplest way to get started with GoAngular is to include the GoInstant and GoAngular libraries from their respective [CDNs](https://cdn.goinstant.net/), but the [bower](http://bower.io/) and [component.io](http://component.io/) package managers are also supported:
 
-Now, we'll include our GoInstant & GoAngular libraries in the `<head>` tag of our Form:
+#### CDN
 
-```html
-<script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
-<script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>
-```
+```<script src="https://cdn.goinstant.net/v1/platform.min.js"></script>```
 
-Next we'll specify the `goangular` module as a dependency for our app and
-configure our connection with the goConnection provider:
+```<script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>```
+
+#### Bower
+
+`bower install goangular`
+
+#### Component
+
+`component install goinstant/goangular`
+
+### Register `goangular` as a Dependency
+
+The `goangular` module includes a collection of services, before we can access them from within our application we need to specify the module as a dependency for our new chat app:
 
 ```js
-angular.module('FormSync', ['goangular'])
-  .config(function(goConnectionProvider) {
-    goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
-  });
+var chatApp = angular.module('Chat', ['goangular']);
 ```
 
-### Step 3: Make it multi-user with GoAngular
+### Configure the GoInstant connection
 
-Now we add `GoAngular` to our controller, create a new instance and initialize it!
-We pass in our controllers $scope and choose a namespace.
+We'll use the `$goConnection` provider during Angular's configuration stage to set our applications Connect Url:
 
 ```js
-function SyncCtrl($scope, GoAngular) {
-  $scope.name = 'Bob';
+var chatApp = angular.module('Chat', ['goangular']);
 
-  var goAngular = new GoAngular($scope, 'SyncCtrl');
+chatApp.configure(function($goConnectionProvider) {
+  $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
+});
+```
 
-  // Begin synchronization
-  goAngular.initialize();
+Now that our connection is configured we can inject the `$goKey` service into a controller:
+
+```js
+var chatApp = angular.module('Chat', ['goangular']);
+
+chatApp.configure(function($goConnectionProvider) {
+  $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
+});
+
+chatApp.controller('ChatCtrl', function($scope, $goKey) {
+ // $goKey is available
+});
+```
+
+Congratulations, you've installed GoAngular and we're ready to build our chat application!
+
+## Create & Synchronize a Collection of Chat Messages
+
+The `$goKey` method takes a string, representing the location (or key) within your remote data structure. Our data structure is going to be very simple, it's only going to have one key: `messages`. GoInstant stores data in a JSON schema. Each message will have an author and content. You can imagine it will look like this:
+
+```json
+{
+  messages: {
+    generated_id: {
+      author: 'author name',
+      content: 'message contents'
+    }
+  }
 }
 ```
 
-#### All Together Now
+`$goKey` always returns a [Model](./model/index.md), an encapsulation for your application’s data. Each model is associated with a specific location in your data structure and includes methods for manipulating and managing your data.
 
-In only 35 lines of code we have a real-time, multi-user form!
+Let's use `$goKey` to create a model associated with our collection of messages and place it on `$scope`:
+
+```js
+chatApp.controller('ChatCtrl', function($scope, $goKey) {
+  $scope.messages = $goKey('messages');
+});
+```
+
+At this point `$scope.messages` is an empty container. We can fill it up with our remote data using the `$sync` method, which will also monitor our remote data, updating our local version whenever it changes. **Note: changes made *directly* to the model object will not persist back to remote storage.**
+
+```js
+chatApp.controller('ChatCtrl', function($scope, $goKey) {
+  $scope.messages = $goKey('messages');
+  $scope.messages.$sync();
+
+  // We can attach a listener to the 'ready' event
+  // to be notified when our model is in sync
+  $scope.messages.$on('ready', function() {
+    // Our local and remote structures are now in sync
+  });
+
+  // We can attach a listener to the 'error' event
+  // to be notified when a problem occurs
+  $scope.messages.$on('error', function() {
+    // Uh oh
+  });
+});
+```
+
+## Add a New Message to Our Collection
+
+The `$add` method is really helpful, it generates IDs/Key names for the items we add to our collection. Best of all, the names are generated chronologically, making them easy to sort. We can begin adding messages to our collection before it's finished synchronization:
+
+```js
+chatApp.controller('ChatCtrl', function($scope, $goKey) {
+  $scope.messages = $goKey('messages');
+  $scope.messages.$sync();
+
+  $scope.sendMessage = function() {
+    var message = {
+      content: $scope.messageContent,
+      author: $scope.author
+    };
+
+    // Each method returns a promise, we can use that to confirm that item was
+    // added succesfully
+    $scope.messages.$add(message).then(function() {
+      $scope.messageContent = '';
+    });
+  }
+});
+```
+
+Each time an item is added, our model is updated, and so is (of course) our view!
+
+## The Kitchen Sink
+
+Let's see it all tied together:
 
 ```html
 <!DOCTYPE html>
-<html ng-app="FormSync">
-  <head>
-    <title>GoAngular Form Synchronization</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
-    <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
-    <script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>
-  </head>
-  <body>
-    <div ng-controller="SyncCtrl">
-      <input ng-model="name" type="text"/>
-      <br>
-      <p>Name is: {{ name }}</p>
+<html ng-app="Chat">
+<head>
+  <title>GoAngular Chat Tutorial</title>
+</head>
+<body>
+  <h1>Getting Started with GoAngular Chat</h1>
+
+  <!-- Messages displayed -->
+  <div id="messages">
+    <div class="message" ng-repeat="message in messages">
+      <span class="author">{{ message.author }}</span>
+      <span class="content">{{ message.content }}</span>
     </div>
-    <script>
-      angular.module('FormSync', ['goangular'])
-        .config(function(goConnectionProvider) {
-          goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+  </div>
+
+  <!-- New message form -->
+  <form ng-submit="sendMessage()">
+    <input ng-model="author">
+    <input ng-model="messageContent">
+  </form>
+
+  <!-- Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.1/angular.min.js"></script>
+  <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
+  <script src="https://cdn.goinstant.net/integrations/goangular/latest/goangular.min.js"></script>
+
+  <!-- Angular App -->
+  <script>
+    var chatApp = angular.module('Chat', ['goangular']);
+
+    chatApp.configure(function($goConnectionProvider) {
+      $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
+    });
+
+    chatApp.controller('ChatCtrl', function($scope, $goKey) {
+      $scope.messages = $goKey('messages');
+      $scope.messages.$sync();
+
+      $scope.sendMessage = function() {
+        var message = {
+          content: $scope.messageContent,
+          author: $scope.author
+        };
+
+        // Each method returns a promise, we can use that to confirm that item was
+        // added successfully
+        $scope.messages.$add(message).then(function() {
+          $scope.messageContent = '';
         });
-
-      function SyncCtrl($scope, GoAngular) {
-        $scope.name = 'Bob';
-
-        var goAngular = new GoAngular($scope, 'SyncCtrl');
-
-        goAngular.initialize();
       }
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>
 ```

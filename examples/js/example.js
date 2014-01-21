@@ -16,42 +16,33 @@ require('goangular');
 // Create an AngularJS application module
 var ourCoolApp = angular.module('ourCoolApp', ['goangular']);
 
-ourCoolApp.config(function($goConnectProvider) {
-  $goConnectProvider.set(CONFIG.connectUrl, { user: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dvaW5zdGFudC5uZXQvbWF0dGNyZWFnZXIvRGluZ0RvbmciLCJzdWIiOiJuYSIsImRuIjoiZHVkZSIsImciOltdLCJhdWQiOiJnb2luc3RhbnQubmV0In0.LcvRSDmEj9LHonPhnXv1OWTQ5gjcBnk1QgxH4iYt6PM'});
+ourCoolApp.config(function($goConnectionProvider) {
+  $goConnectionProvider.$set(CONFIG.connectUrl, { user: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dvaW5zdGFudC5uZXQvbWF0dGNyZWFnZXIvRGluZ0RvbmciLCJzdWIiOiJuYSIsImRuIjoiZHVkZSIsImciOltdLCJhdWQiOiJnb2luc3RhbnQubmV0In0.LcvRSDmEj9LHonPhnXv1OWTQ5gjcBnk1QgxH4iYt6PM'});
 });
 
-ourCoolApp.controller('sweetController', function($scope, $goConnect, $goKey) {
+ourCoolApp.controller('sweetController', function($scope, $goKey) {
 
-  $goConnect.ready().get('rooms').spread(function(lobby) {
-    $scope.todos = $goKey(lobby.key('todos'));
-    $scope.todos.$sync();
+  $scope.todos = $goKey('todos');
+  $scope.todos.$sync();
 
-    console.log('todos', $scope.todos);
+  console.log('todos', $scope.todos);
 
-    // // reference nested key via todos
-    $scope.name = $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$key('description').$sync();
-    $scope.$watch('name', function() {
-      console.log(arguments)
-    });
+  // // reference nested key via todos
+  $scope.name = $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$key('description').$sync();
 
-    // // reference nested key via .key
-    $scope.description = $goKey(lobby.key('todos').key('9edd3cf39e22da900707d9091f90eb52')).$sync();
+  // // reference nested key via .key
+  $scope.description = $goKey('todos/9edd3cf39e22da900707d9091f90eb52').$sync();
 
-    setTimeout(function() {
-      $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52/description').$set('jygjygjguj');
-    }, 1000);
-  }).catch(function(err) {
-    console.log(err);
-  }).finally(function() {
-    $scope.$apply();
-  });
+  setTimeout(function() {
+    $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52/description').$set('jygjygjguj');
+  }, 1000);
 
   $scope.addTodo = function() {
     $scope.todos.$add({
       timestamp: new Date().getTime(),
       description: $scope.newTodo,
       complete: false
-    }).then(function() {
+    }, { expire: 500 }).then(function() {
       console.log(arguments);
     });
   };

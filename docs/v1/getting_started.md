@@ -156,7 +156,7 @@ Let's see it all tied together:
 <head>
   <title>GoAngular Chat Tutorial</title>
 </head>
-<body>
+<body ng-controller="ChatCtrl">
   <h1>Getting Started with GoAngular Chat</h1>
 
   <!-- Messages displayed -->

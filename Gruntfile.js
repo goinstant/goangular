@@ -34,10 +34,7 @@ module.exports = function(grunt) {
     return ASSET_HOST + '/integrations/goangular/v' + getSemver();
   }
 
-  grunt.loadNpmTasks('grunt-contrib-clean');
-  grunt.loadNpmTasks('grunt-contrib-connect');
-  grunt.loadNpmTasks('grunt-saucelabs');
-  grunt.loadNpmTasks('grunt-contrib-watch');
+  require('load-grunt-tasks')(grunt);
 
   grunt.initConfig({
     clean: CLEAN_DIRS,

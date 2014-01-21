@@ -64,16 +64,16 @@ describe('GoAngular.goConnection', function() {
 
         goConnection.$set(url, opts);
 
-        assert.equal(goConnection._opts, opts);
-        assert.equal(goConnection._url, url);
-        assert(goConnection._configured);
+        assert.equal(goConnection.$$opts, opts);
+        assert.equal(goConnection.$$url, url);
+        assert(goConnection.$$configured);
       });
 
       it('connects to goinstant', function() {
         goConnection.$set(url, opts);
         goConnection.$get();
 
-        sinon.assert.calledWith(connect, opts);
+        sinon.assert.calledWith(connect, opts.user);
       });
 
       describe('error cases', function() {
@@ -88,8 +88,8 @@ describe('GoAngular.goConnection', function() {
 
         it('throws if the connection has not been configured', function() {
           assert.exception(function() {
-            goConnection.$get();
-          }, 'The GoInstant connection must be configured first.');
+            goConnection.$ready();
+          }, /You must configure you connection first/);
         });
       });
     });

@@ -7,8 +7,9 @@ connection!
 ## Contents
 
 1. [Code Example](#code-example)
-2. [$goConnection#$set](#$goconnection#$set)
-3. [$goConnection#$ready](#$goconnection#$ready)
+2. [$goConnection#$connect](#goConnection#$connect)
+3. [$goConnection#$set](#$goconnection#$set)
+4. [$goConnection#$ready](#$goconnection#$ready)
 
 ## Code Example
 
@@ -76,6 +77,70 @@ JavaScript libraries.
     <div ng-controller="completeControl"></div>
   </body>
 </html>
+```
+
+## $goConnection#$connect
+
+### Description
+
+In some cases, you will need to defer connecting to GoInstant until after Angular's
+configuration stage, in these situations you'll use `$connect`.
+
+`$connect` accepts two parameters a `connectUrl` and an `optionsObject`.  The object has two optional
+properties: `user` which can be a [JWT](../../guides/users_and_authentication.md)
+or a set of default user properties and `room`, which is the name of the room you wish
+to use.  By default you join the 'Lobby'.
+
+A connection once established can still be shared among controllers using the `$ready()`
+method, which returns a promise.
+
+**Note: You should not use this method in conjunction with
+`goConnectionProvider.$set`**
+
+### Methods
+
+- ##### **$goConnection.$connect(connectUrl)**
+- ##### **$goConnection.$connect(connectUrl, optionsObject)**
+
+### Parameters
+
+| connectUrl |
+|:---|
+| Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) |
+| Your registered application URL (e.g. https://goinstant.net/YOURACCOUNT/YOURAPP). |
+
+| optionsObject |
+|:---|
+| Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+| An object with three properties: `user`, `room` and `rooms`. |
+| - `user` is an optional [JWT](../../guides/users_and_authentication.md) or Object. If not provided, the user will connect as a guest. If provided and an Object, the user will connect as a guest with the given default user properties. |
+| - `room` is an optional string. If provided, the [Room](../../javascript_api/rooms/index.md) with the provided name will be joined, otherwise the 'lobby' Room will be joined. |
+
+### Returns
+
+| promiseObject |
+|:---|
+| Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) |
+| A Q powered promise which is resolved once a connection to GoInstant has been established or is rejected if an error is encountered.  |
+
+### Example
+
+```js
+// Specify GoAngular as a dependency and configure your connection
+angular.module('yourApp', ['goangular'])
+  .controller('completeControl', function($goConnection) {
+    $goConnection.$connect('https://goinstant.net/YOURACCOUNT/YOURAPP', {
+      user: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczo...'
+      room: 'myCustomRoom'
+    }).then(
+      function(connection) {
+        // Connected
+      },
+      function(err) {
+        // Error encountered
+      }
+    );
+  });
 ```
 
 ## $goConnection#$set

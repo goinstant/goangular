@@ -6,11 +6,11 @@ You can find the source files for this demo (with some slight enhancements) [her
 
 ##  Contents
 
-#### [Sign Up for a GoInstant Account](#sign-up-for-a-goinstant-account)
-#### [Install GoAngular](#install-goangular)
-#### [Create and Synchronize a Collection of Chat Messages](#create-&-synchronize-a-collection-of-chat-messages)
-#### [Add a New Message to Our Collection](#add-a-new-message-to-our-collection)
-#### [The Kitchen Sink Demo](#the-kitchen-sink-demo)
+1. [Sign Up for a GoInstant Account](#sign-up-for-a-goinstant-account)
+2. [Install GoAngular](#install-goangular)
+3. [Create and Synchronize a Collection of Chat Messages](#create-&-synchronize-a-collection-of-chat-messages)
+4. [Add a New Message to Our Collection](#add-a-new-message-to-our-collection)
+5. [The Kitchen Sink Demo](#the-kitchen-sink-demo)
 
 ## Sign Up for a GoInstant Account
 
@@ -53,7 +53,7 @@ We'll use the `$goConnection` provider during Angular's configuration stage to s
 ```js
 var chatApp = angular.module('Chat', ['goangular']);
 
-chatApp.configure(function($goConnectionProvider) {
+chatApp.config(function($goConnectionProvider) {
   $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
 });
 ```
@@ -63,7 +63,7 @@ Now that our connection is configured we can inject the `$goKey` service into a 
 ```js
 var chatApp = angular.module('Chat', ['goangular']);
 
-chatApp.configure(function($goConnectionProvider) {
+chatApp.config(function($goConnectionProvider) {
   $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
 });
 
@@ -182,7 +182,7 @@ Let's see it all tied together:
   <script>
     var chatApp = angular.module('Chat', ['goangular']);
 
-    chatApp.configure(function($goConnectionProvider) {
+    chatApp.config(function($goConnectionProvider) {
       $goConnectionProvider.$set('https://goinstant.net/ACCOUNT_NAME/APP_NAME');
     });
 

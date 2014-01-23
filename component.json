@@ -28,6 +28,7 @@
     "lib/model_binder.js",
     "lib/bounce_protection.js",
     "lib/errors.js",
-    "lib/util/normalize.js"
+    "lib/util/normalize.js",
+    "lib/util/inchworm.js"
   ]
 }

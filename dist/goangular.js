@@ -8314,7 +8314,7 @@ Model.prototype.$sync = function() {
   var connected = self.$$goConnection.ready();
 
   connected.then(function() {
-    var measure = self.$$inchworm.mark('$sync');
+    var measure = self.$$inchworm.mark('sync');
 
     self.$$sync = self.$$goSync(self.$$key, self);
     self.$$sync.$initialize();
@@ -8351,7 +8351,7 @@ Model.prototype.$set = function(value, opts) {
 
   var self = this;
   return this.$$goConnection.ready().then(function() {
-    var measure = self.$$inchworm.mark('$set');
+    var measure = self.$$inchworm.mark('set');
 
     return self.$$key.set(value, opts).then(measure);
   });
@@ -8368,7 +8368,7 @@ Model.prototype.$add = function(value, opts) {
 
   var self = this;
   return this.$$goConnection.ready().then(function() {
-    var measure = self.$$inchworm.mark('$add');
+    var measure = self.$$inchworm.mark('add');
 
     return self.$$key.add(value, opts).then(measure);
   });
@@ -8384,7 +8384,7 @@ Model.prototype.$remove = function(opts) {
 
   var self = this;
   return this.$$goConnection.ready().then(function() {
-    var measure = self.$$inchworm.mark('$remove');
+    var measure = self.$$inchworm.mark('remove');
 
     return self.$$key.remove(opts).then(measure);
   });
@@ -9525,22 +9525,22 @@ function Inchworm(model) {
     $$name: model.$$key.name,
     $$performance: window.performance,
     $$measures: {
-      $add: [],
-      $set: [],
-      $remove: [],
-      $sync: []
+      add: [],
+      set: [],
+      remove: [],
+      sync: []
     },
     $$totals: {
-      $add: 0,
-      $set: 0,
-      $remove: 0,
-      $sync: 0
+      add: 0,
+      set: 0,
+      remove: 0,
+      sync: 0
     },
     $$counter: {
-      $add: 0,
-      $set: 0,
-      $remove: 0,
-      $sync: 0
+      add: 0,
+      set: 0,
+      remove: 0,
+      sync: 0
     }
   });
 

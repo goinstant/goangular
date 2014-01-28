@@ -15,6 +15,8 @@
   "main": "index.js",
   "scripts": [
     "index.js",
+    "lib/query_model.js",
+    "lib/query_sync.js",
     "lib/safe_apply.js",
     "lib/connection.js",
     "lib/connection_factory.js",
@@ -28,6 +30,7 @@
     "lib/model_binder.js",
     "lib/bounce_protection.js",
     "lib/errors.js",
-    "lib/util/normalize.js"
+    "lib/util/normalize.js",
+    "lib/util/args.js"
   ]
 }

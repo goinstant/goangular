@@ -7,7 +7,7 @@ connection!
 ## Contents
 
 1. [Code Example](#code-example)
-2. [$goConnection#$connect](#goConnection#$connect)
+2. [$goConnection#$connect](#$goconnection#$connect)
 3. [$goConnection#$set](#$goconnection#$set)
 4. [$goConnection#$ready](#$goconnection#$ready)
 
@@ -87,8 +87,8 @@ In some cases, you will need to defer connecting to GoInstant until after Angula
 configuration stage, in these situations you'll use `$connect`.
 
 `$connect` accepts two parameters a `connectUrl` and an `optionsObject`.  The object has two optional
-properties: `user` which can be a [JWT](../../guides/users_and_authentication.md)
-or a set of default user properties and [room](../../javascript_api/rooms/index.md), which is the name of the room you wish
+properties: `user` which can be a [JWT](../guides/users_and_authentication.md)
+or a set of default user properties and [room](../javascript_api/rooms/index.md), which is the name of the room you wish
 to use.  By default you join the 'Lobby'.
 
 The `$ready` method cannot ***currently*** be called until after the `$connect`

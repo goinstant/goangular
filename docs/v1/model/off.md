@@ -58,7 +58,7 @@ angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
 });
 ```
 
-Remove all listeners
+Remove all listeners and stop synchronizing the model
 
 ```js
 angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
@@ -76,7 +76,8 @@ angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
   $scope.todos.$on('add', listener);
   $scope.todos.$on('remove', opts, listener);
 
-  // Removes all listeners defined above
+  // Removes all listeners defined above and stops monitoring for changes
+  // via `$sync`
   $scope.todos.$off();
 });
 ```

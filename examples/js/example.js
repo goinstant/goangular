@@ -14,41 +14,68 @@
 require('goangular');
 
 // Create an AngularJS application module
-var ourCoolApp = angular.module('ourCoolApp', ['goangular']);
+var app = angular.module('app', ['goangular']);
 
-ourCoolApp.config(function($goConnectionProvider) {
-  $goConnectionProvider.$set(CONFIG.connectUrl, { user: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dvaW5zdGFudC5uZXQvbWF0dGNyZWFnZXIvRGluZ0RvbmciLCJzdWIiOiJuYSIsImRuIjoiZHVkZSIsImciOltdLCJhdWQiOiJnb2luc3RhbnQubmV0In0.LcvRSDmEj9LHonPhnXv1OWTQ5gjcBnk1QgxH4iYt6PM'});
+app.config(function($goConnectionProvider) {
+  $goConnectionProvider.$set(CONFIG.connectUrl);
 });
 
-ourCoolApp.controller('sweetController', function($scope, $goKey) {
+app.controller('sweetController', function($scope, $goKey, $goConnection) {
 
-  $scope.todos = $goKey('todos');
-  $scope.todos.$sync();
+  $scope.todos = $goKey('todos').$sync();
 
-  console.log('todos', $scope.todos);
-
-  // // reference nested key via todos
-  $scope.name = $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$key('description').$sync();
-
-  // // reference nested key via .key
-  $scope.description = $goKey('todos/9edd3cf39e22da900707d9091f90eb52').$sync();
-
-  setTimeout(function() {
-    $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52/description').$set('jygjygjguj');
-  }, 1000);
+  $goConnection.$ready().then(function(connection) {
+    var room = connection.room('lobby');
+    room.self().get().then(function(results) {
+      $scope.currentUser = results.value;
+      $scope.$apply();
+    });
+  });
 
   $scope.addTodo = function() {
+    var desc = $scope.newTodo;
+    if (desc === undefined || desc === '') {
+      return;
+    }
+
     $scope.todos.$add({
       timestamp: new Date().getTime(),
       description: $scope.newTodo,
       complete: false
-    }, { expire: 500 }).then(function() {
-      console.log(arguments);
+    }).then(function() {
+      $scope.newTodo = '';
+      $scope.$apply();
     });
   };
+
+  var opts = {
+    local: true
+  };
+
+  $scope.todos.$on('add', opts, function(value) {
+    $scope.description = value.description;
+  });
 
   $scope.remove = function(key) {
     $scope.todos.$key(key).$remove();
   };
+});
 
+app.directive('enter', function() {
+  var dir = {
+    restrict: 'A',
+    link: function(scope, element, attrs) {
+      element.bind('keydown', function(event) {
+        var key = (event.which) ? event.which : event.keyCode;
+
+        if (key !== 13) {
+          return;
+        }
+
+        scope.$eval(attrs.enter);
+      });
+    }
+  };
+
+  return dir;
 });

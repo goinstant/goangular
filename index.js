@@ -11,11 +11,15 @@
 'use strict';
 
 var connectionFactory = require('./lib/connection_factory');
-var goAngularFactory = require('./lib/go_angular_factory');
-var syncFactory = require('./lib/sync_factory');
+
+var keySync = require('./lib/key_sync');
 var keyFactory = require('./lib/key_factory');
-var QueryModel = require('./lib/query_model');
-var QuerySync = require('./lib/query_sync');
+
+var querySync = require('./lib/query_sync');
+var queryFactory = require('./lib/query_factory');
+
+var goAngularFactory = require('./lib/go_angular_factory');
+
 
 /** goangular module registration */
 
@@ -25,30 +29,11 @@ var goangular = angular.module('goangular', []);
 
 goangular.provider('$goConnection', connectionFactory);
 
-goangular.factory('$goSync', [
-  '$parse',
-  '$timeout',
-  syncFactory
-]);
+goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
+goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
-goangular.factory('$goQuerySync', [
-  '$parse',
-  '$timeout',
-  QuerySync
-]);
-
-goangular.factory('$goKey', [
-  '$goSync',
-  '$goConnection',
-  keyFactory
-]);
-
-goangular.factory('$goQuery', [
-  '$goQuerySync',
-  '$goConnection',
-  '$goKey',
-  QueryModel
-]);
+goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
+goangular.factory('$goQuery', [ '$goQuerySync', '$goConnection', queryFactory]);
 
 goangular.factory('GoAngular', [
   '$q',

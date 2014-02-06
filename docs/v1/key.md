@@ -34,7 +34,8 @@ Create a model for a single todo, relative to a collection of todos:
 
 ```js
 angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
-  $scope.todos.$goKey('todos').$sync();
+  $scope.todos = $goKey('todos');
+  $scope.todos.$sync();
   $scope.todos.$on('ready', function() {
     var todoOne = $scope.todos.$key('todo_1');
     todoOne.$key('description').$set('a new description');

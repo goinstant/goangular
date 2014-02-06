@@ -57,9 +57,11 @@ app.controller('sweetController', function($scope, $goKey, $goConnection) {
   });
 
   $scope.remove = function(key) {
+    console.log('key remove is called on', key);
     $scope.todos.$key(key).$remove();
   };
 });
+
 
 app.directive('enter', function() {
   var dir = {

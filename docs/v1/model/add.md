@@ -1,4 +1,8 @@
-# model#$add
+# $add
+
+```
+Stability: 4 - Stable
+```
 
 Working with collections? The `$add` method might be your best friend, it generates a unique name/id, appends the value you provide to the key associated with the
 model in chronological order and returns a promise.  If the model is being

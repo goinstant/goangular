@@ -1,4 +1,8 @@
-# model#$sync
+# $sync
+
+```
+Stability: 4 - Stable
+```
 
 Retrieves the current value of the key associated with this model and monitors it for changes, keeping the model in sync with the  associated key.  ***Note: changes made directly to the object do not persist back to the key.***
 

@@ -102,10 +102,9 @@ describe('GoAngular.querySync', function() {
 
       _.each(queryUpdateData, function(data) {
         it(data.desc, function() {
-          sync.$$model = _.merge(data.model, model);
+          sync.$$model = _.merge(model, data.model);
           sync.$$handleUpdate(data.result, data.context);
 
-          var expect = _.merge(data.expect, model);
           var position = data.context.position.current;
 
           assert.sameMembers(sync.$$model, data.expect);
@@ -120,10 +119,10 @@ describe('GoAngular.querySync', function() {
         var context = { position: { previous: 0 } };
         var result = { name: 'foo' };
 
-        sync.$$model = _.merge({ foo: 'bar' }, model);
+        sync.$$model = _.merge(model, { foo: 'bar' });
         sync.$$handleRemove(result, context);
 
-        var expect = _.merge(result, model);
+        var expect = _.merge(model, result);
 
         assert.sameMembers(sync.$$model, expect);
         assert.equal(sync.$$model.$$index.length, 0);

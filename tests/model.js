@@ -95,18 +95,46 @@ describe('GoAngular.Model', function() {
     describe('$on', function() {
 
       it('add an event listener', function() {
-        model.$on('eventName', 'listener');
+        var fakeLstner = sinon.stub();
 
-        sinon.assert.calledWith(fakeKey.on, 'eventName', 'listener');
+        model.$on('eventName', fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeLstner);
+      });
+
+      it('add an event listener with options object', function() {
+        var fakeOpts = {
+          local: true
+        };
+
+        var fakeLstner = sinon.stub();
+
+        model.$on('eventName', fakeOpts, fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeOpts, fakeLstner);
       });
     });
 
     describe('$off', function() {
 
-      it('add an event listener', function() {
-        model.$off('eventName', 'listener');
+      it('remove an event listener', function() {
+        var fakeLstner = sinon.stub();
 
-        sinon.assert.calledWith(fakeKey.off, 'eventName', 'listener');
+        model.$off('eventName', fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeLstner);
+      });
+
+      it('remove an event listener with options object', function() {
+        var fakeOpts = {
+          bubble: true
+        };
+
+        var fakeLstner = sinon.stub();
+
+        model.$off('eventName', fakeOpts, fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeOpts, fakeLstner);
       });
     });
 

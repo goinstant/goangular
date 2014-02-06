@@ -1,5 +1,9 @@
 # $goQuery
 
+```
+Stability: 2 - Experimental
+```
+
 The `$goQuery` method enables you to filter, sort and limit the children of a key, using a MongoDb inspired query syntax. It returns a [GoAngular Model](./model/index.md).
 
 ## Methods
@@ -15,7 +19,7 @@ The `$goQuery` method enables you to filter, sort and limit the children of a ke
 | keyName |
 |:---|
 | Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String). |
-| The name of the key to be referenced. [Naming restrictions apply.](Naming restrictions apply) A leading forward-slash ('/') is implied, (e.g. 'foo/bar' is the same as '/foo/bar'). |
+| The name of the key to be referenced. [Naming restrictions apply.](../key/index.md#on-key-naming) A leading forward-slash ('/') is implied, (e.g. 'foo/bar' is the same as '/foo/bar'). |
 
 | roomName |
 |:---|

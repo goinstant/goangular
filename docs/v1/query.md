@@ -1,7 +1,7 @@
 # $goQuery
 
 ```
-Stability: 2 - Experimental
+Stability: 1 - Experimental
 ```
 
 The `$goQuery` method enables you to filter, sort and limit the children of a key, using a MongoDb inspired query syntax. It returns a [GoAngular Model](./model/index.md).

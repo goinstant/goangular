@@ -1,5 +1,9 @@
 # $goConnnection
 
+```
+Stability: 3 - Stable
+```
+
 The `$goConnection` provider is the lowest point of access to GoInstant in GoAngular.
 It's used during configuration, and as convenient means of accessing your GoInstant
 connection!

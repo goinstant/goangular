@@ -19,16 +19,9 @@
     "lib/query_sync.js",
     "lib/key_factory.js",
     "lib/key_sync.js",
-    "lib/safe_apply.js",
     "lib/connection.js",
     "lib/connection_factory.js",
     "lib/model.js",
-    "lib/go_angular_factory.js",
-    "lib/go_angular.js",
-    "lib/scope_scrubber.js",
-    "lib/model_binder.js",
-    "lib/bounce_protection.js",
-    "lib/errors.js",
     "lib/util/normalize.js",
     "lib/util/args.js"
   ]

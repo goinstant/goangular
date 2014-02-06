@@ -18,10 +18,7 @@ var keyFactory = require('./lib/key_factory');
 var querySync = require('./lib/query_sync');
 var queryFactory = require('./lib/query_factory');
 
-var goAngularFactory = require('./lib/go_angular_factory');
-
-
-/** goangular module registration */
+/** Module Registration */
 
 var goangular = angular.module('goangular', []);
 
@@ -34,10 +31,3 @@ goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
 goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
 goangular.factory('$goQuery', [ '$goQuerySync', '$goConnection', queryFactory]);
-
-goangular.factory('GoAngular', [
-  '$q',
-  '$parse',
-  'goConnection',
-  goAngularFactory
-]);

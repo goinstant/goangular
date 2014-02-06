@@ -1,4 +1,8 @@
-# model#$set
+# $set
+
+```
+Stability: 3 - Stable
+```
 
 The `$set` method first overwrites the remote value of the key associated with this model.  Once this operation is complete the local
 model object is updated to the new value.

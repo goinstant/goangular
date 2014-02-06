@@ -1,4 +1,8 @@
-# model#$remove
+# $remove
+
+```
+Stability: 3 - Stable
+```
 
 The `$remove` method removes the key associated with the GoAngular model
 and all sub-keys.

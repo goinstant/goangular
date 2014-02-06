@@ -1,6 +1,6 @@
 /* jshint browser:true */
 
-describe('GoAngular.goSync', function() {
+describe('GoAngular.keySync', function() {
 
   'use strict';
 
@@ -10,8 +10,7 @@ describe('GoAngular.goSync', function() {
   var _ = window._;
 
   /* Component Dependencies */
-  var syncFactory = require('goangular/lib/sync_factory');
-  var Sync = require('goangular/lib/sync');
+  var keySync = require('goangular/lib/key_sync');
 
   var sandbox;
   var fakeKey;
@@ -48,18 +47,14 @@ describe('GoAngular.goSync', function() {
     var sync;
 
     beforeEach(function() {
-      factory = syncFactory($parse, $timeout);
-      sync = factory(fakeKey, model);
-    });
-
-    it('instantiates Sync', function() {
-      assert.instanceOf(sync, Sync);
+      factory = keySync($parse, $timeout);
+      sync = factory(fakeKey);
     });
 
     describe('$initialize', function() {
 
       beforeEach(function() {
-        sync.$initialize();
+        sync.$initialize(model);
         model = {};
         model.$$emitter = {};
         model.$$emitter.emit = sinon.stub();
@@ -71,35 +66,35 @@ describe('GoAngular.goSync', function() {
 
       it('assigns a primitive number to model.$value', function() {
         fakeKey.get = sinon.stub().yields(null, primitiveInt);
-        factory(fakeKey, model).$initialize();
+        factory(fakeKey).$initialize(model);
 
         assert.equal(model.$value, primitiveInt);
       });
 
       it('assigns a primitive string to model.$value', function() {
         fakeKey.get = sinon.stub().yields(null, primitiveStr);
-        factory(fakeKey, model).$initialize();
+        factory(fakeKey).$initialize(model);
 
         assert.equal(model.$value, primitiveStr);
       });
 
       it('assigns a primitive bool to model.$value', function() {
         fakeKey.get = sinon.stub().yields(null, primitiveBool);
-        factory(fakeKey, model).$initialize();
+        factory(fakeKey).$initialize(model);
 
         assert.equal(model.$value, primitiveBool);
       });
 
       it('extends the model if an object is returned', function() {
         fakeKey.get = sinon.stub().yields(null, collection);
-        factory(fakeKey, model).$initialize();
+        factory(fakeKey).$initialize(model);
 
         assert.deepEqual(model, _.merge(model, collection));
       });
 
       it('extends the model if an array is returned', function() {
         fakeKey.get = sinon.stub().yields(null, list);
-        factory(fakeKey, model).$initialize();
+        factory(fakeKey).$initialize(model);
 
         var obj = {};
         _.each(list, function(value, key) {
@@ -233,7 +228,7 @@ describe('GoAngular.goSync', function() {
 
       _.each(keyUpdateData, function(data) {
         it(data.desc, function() {
-          sync.$initialize();
+          sync.$initialize(model);
           sync.$$model = data.model || model;
           sync.$$handleRemove(data.value, data.context);
 

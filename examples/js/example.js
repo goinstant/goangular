@@ -20,6 +20,7 @@ ourCoolApp.config(function($goConnectionProvider) {
   $goConnectionProvider.$set(CONFIG.connectUrl);
 });
 
+
 ourCoolApp.controller('sweetController', function($scope, $goKey, $goQuery, $goConnection) {
 
   //$scope.todos = $goQuery('todos', {}, { sort: { 'timestamp': 'desc' }, limit: 50 }).$sync();

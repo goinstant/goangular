@@ -75,6 +75,13 @@ module.exports = function(grunt) {
       options: {
         dest: 'CHANGELOG.md'
       }
+    },
+    bump: {
+      options: {
+        files: ['package.json', 'component.json', 'bower.json'],
+        commitMessage: 'Release v%VERSION%',
+        commitFiles: '-a', // '-a' for all files
+      }
     }
   });
 

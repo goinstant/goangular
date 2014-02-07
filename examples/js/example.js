@@ -14,61 +14,68 @@
 require('goangular');
 
 // Create an AngularJS application module
-var ourCoolApp = angular.module('ourCoolApp', ['goangular']);
-
-ourCoolApp.config(function($goConnectionProvider) {
+var app = angular.module('app', ['goangular']);
+app.config(function($goConnectionProvider) {
   $goConnectionProvider.$set(CONFIG.connectUrl);
 });
 
+app.controller('sweetController', function($scope, $goKey, $goConnection) {
 
-ourCoolApp.controller('sweetController', function($scope, $goKey, $goQuery, $goConnection) {
-
-  //$scope.todos = $goQuery('todos', {}, { sort: { 'timestamp': 'desc' }, limit: 50 }).$sync();
   $scope.todos = $goKey('todos').$sync();
 
-  console.log('todos', $scope.todos);
-
-  // //$scope.todos.$sync();
-
-  // console.log('todos', $scope.todos);
-
-  // // // reference nested key via todos
-  // $scope.name = $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$key('description').$sync();
-
-  // // // reference nested key via .key
-  // $scope.description = $goKey('todos/9edd3cf39e22da900707d9091f90eb52').$sync();
-
-  setTimeout(function() {
-    $scope.todos.$key('9edd3cf39e22da900707d9091f90eb52').$set({
-      timestamp: new Date().getTime(),
-      description: 'an Item'
+  $goConnection.$ready().then(function(connection) {
+    var room = connection.room('lobby');
+    room.self().get().then(function(results) {
+      $scope.currentUser = results.value;
+      $scope.$apply();
     });
-  }, 1000);
+  });
 
   $scope.addTodo = function() {
+    var desc = $scope.newTodo;
+    if (desc === undefined || desc === '') {
+      return;
+    }
+
     $scope.todos.$add({
       timestamp: new Date().getTime(),
       description: $scope.newTodo,
       complete: false
     }).then(function() {
-      console.log(arguments);
+      $scope.newTodo = '';
+      $scope.$apply();
     });
   };
+
+  var opts = {
+    local: true
+  };
+
+  $scope.todos.$on('add', opts, function(value) {
+    $scope.description = value.description;
+  });
 
   $scope.remove = function(key) {
     console.log('key remove is called on', key);
     $scope.todos.$key(key).$remove();
   };
-
 });
 
-function whatever(key, room, filter, options) {
-  console.log(arguments)
+app.directive('enter', function() {
+  var dir = {
+    restrict: 'A',
+    link: function(scope, element, attrs) {
+      element.bind('keydown', function(event) {
+        var key = (event.which) ? event.which : event.keyCode;
 
-  var a = new Args([
-    { key: Args.OBJECT | Args.STRING | Args.Required },
-    { room: Args.STRING | Args.Optional },
-    { filter: Args.OBJECT | Args.Optional, _default: {} },
-    { options: Args.OBJECT | Args.Required }
-  ], arguments);
-}
+        if (key !== 13) {
+          return;
+        }
+
+        scope.$eval(attrs.enter);
+      });
+    }
+  };
+
+  return dir;
+});

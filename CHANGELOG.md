@@ -1,3 +1,11 @@
+<a name="v3.1.1"></a>
+### v3.1.1 (2014-01-31)
+
+
+#### Bug Fixes
+
+* **sync.js:** trim dead branches on set ([3f069aac](http://github.com/goinstant/goangular/commit/3f069aac59b12f3aacec6146ac56d1c792d5548c))
+
 <a name="v3.1.0"></a>
 ## v3.1.0 (2014-01-21)
 

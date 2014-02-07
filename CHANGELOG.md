@@ -1,3 +1,8 @@
+<a name="v3.2.1"></a>
+### v3.2.1 (2014-02-06)
+
+* **on/off.md:** remove prefixed hash
+
 <a name="v3.2.0"></a>
 ## v3.2.0 (2014-02-06)
 

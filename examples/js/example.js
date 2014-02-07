@@ -62,7 +62,6 @@ app.controller('sweetController', function($scope, $goKey, $goConnection) {
   };
 });
 
-
 app.directive('enter', function() {
   var dir = {
     restrict: 'A',

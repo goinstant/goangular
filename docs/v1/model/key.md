@@ -1,4 +1,8 @@
-# model#$key
+# $key
+
+```
+Stability: 3 - Stable
+```
 
 The `$key` method creates a new GoAngular model for a child property, based on the
 provided key name.

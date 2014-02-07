@@ -1,3 +1,17 @@
+<a name="v3.2.0"></a>
+## v3.2.0 (2014-02-06)
+
+
+#### Bug Fixes
+
+* **example.js:** remove test code from example ([78753ce0](http://github.com/goinstant/goangular/commit/78753ce07af511d4e0c82d797b0b97a7ed293cdd))
+* **sync.js:** trim dead branches on set ([3f069aac](http://github.com/goinstant/goangular/commit/3f069aac59b12f3aacec6146ac56d1c792d5548c))
+
+
+#### Features
+
+* **$goQuery:** Experimental intergration of Query ([eb619b20](http://github.com/goinstant/goangular/commit/eb619b2048a091f9af2e1f8ac5c3c5b47cae27ad))
+
 <a name="v3.1.1"></a>
 ### v3.1.1 (2014-01-31)
 

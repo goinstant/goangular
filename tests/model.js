@@ -1,6 +1,6 @@
 /* jshint browser:true */
 
-describe('GoAngular.goKey', function() {
+describe('GoAngular.Model', function() {
 
   'use strict';
 
@@ -10,14 +10,11 @@ describe('GoAngular.goKey', function() {
 
   /* Component Dependencies */
   var Model = require('goangular/lib/model');
-  var keyFactory = require('goangular/lib/key_factory');
-
-  var errors = require('goangular/lib/errors').errorMap;
 
   var sandbox;
   var fakeKey;
-  var $goSync;
-  var $goConnection;
+  var fakeSync;
+  var fakeConn;
   var fakePromise;
   var initialize;
 
@@ -32,10 +29,10 @@ describe('GoAngular.goKey', function() {
 
     initialize = sandbox.stub();
 
-    $goConnection = { $ready: sinon.stub().returns(fakePromise) };
-    $goSync = sandbox.stub().returns({
+    fakeConn = { $ready: sinon.stub().returns(fakePromise) };
+    fakeSync = {
       $initialize: initialize
-    });
+    };
   });
 
   afterEach(function() {
@@ -46,20 +43,15 @@ describe('GoAngular.goKey', function() {
     var model;
 
     beforeEach(function() {
-      model = keyFactory($goSync, $goConnection)(fakeKey);
-    });
-
-    it('returns a new instance', function() {
-      assert.instanceOf(model, Model);
+      model = new Model(fakeConn, fakeKey, fakeSync);
     });
 
     describe('$sync', function() {
 
-      it('delegates synchronization to goSync', function() {
+      it('delegates to sync object', function() {
         model.$sync();
 
-        sinon.assert.calledWith($goSync, fakeKey, model);
-        sinon.assert.calledOnce(initialize);
+        sinon.assert.calledWith(initialize, model);
       });
     });
 
@@ -102,28 +94,55 @@ describe('GoAngular.goKey', function() {
     describe('$on', function() {
 
       it('add an event listener', function() {
-        model.$on('eventName', 'listener');
+        var fakeLstner = sinon.stub();
 
-        sinon.assert.calledWith(fakeKey.on, 'eventName', 'listener');
+        model.$on('eventName', fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeLstner);
+      });
+
+      it('add an event listener with options object', function() {
+        var fakeOpts = {
+          local: true
+        };
+
+        var fakeLstner = sinon.stub();
+
+        model.$on('eventName', fakeOpts, fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeOpts, fakeLstner);
       });
     });
 
     describe('$off', function() {
 
-      it('add an event listener', function() {
-        model.$off('eventName', 'listener');
+      it('remove an event listener', function() {
+        var fakeLstner = sinon.stub();
 
-        sinon.assert.calledWith(fakeKey.off, 'eventName', 'listener');
+        model.$off('eventName', fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeLstner);
+      });
+
+      it('remove an event listener with options object', function() {
+        var fakeOpts = {
+          bubble: true
+        };
+
+        var fakeLstner = sinon.stub();
+
+        model.$off('eventName', fakeOpts, fakeLstner);
+
+        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeOpts, fakeLstner);
       });
     });
 
-    describe('error cases', function() {
+    describe('$omit', function() {
 
-      it('throws if a key is not provided', function() {
-        assert.exception(function() {
-          var factory = keyFactory($goSync, $goConnection);
-          factory();
-        }, '$goKey' + errors.INVALID_ARGUMENT);
+      it('returns an object sans $-prefixed properties', function() {
+        var result = model.$omit();
+
+        assert.deepEqual(result, {});
       });
     });
   });

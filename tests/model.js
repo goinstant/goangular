@@ -10,7 +10,6 @@ describe('GoAngular.Model', function() {
 
   /* Component Dependencies */
   var Model = require('goangular/lib/model');
-  var errors = require('goangular/lib/errors').errorMap;
 
   var sandbox;
   var fakeKey;

@@ -1,4 +1,8 @@
-# model#$off
+# $off
+
+```
+Stability: 2 - Unstable
+```
 
 The `#off` method allows you to remove a listener from a key associated with
 this model.

@@ -1,4 +1,8 @@
-# model#$on
+# $on
+
+```
+Stability: 2 - Unstable
+```
 
 Used to monitor actions performed on a key associated with this model. The `#on`
 method allows you to register a listener to key events and model events.

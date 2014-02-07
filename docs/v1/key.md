@@ -1,5 +1,9 @@
 # $goKey
 
+```
+Stability: 3 - Stable
+```
+
 The `$goKey` method has only a single required parameter, a `keyName`, which is a string, referencing a specific location
 in your GoInstant applications data structure.  It returns a [GoAngular Model](./model/index.md).
 
@@ -14,7 +18,7 @@ in your GoInstant applications data structure.  It returns a [GoAngular Model](.
 | keyName |
 |:---|
 | Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String). |
-| The name of the key to be referenced. [Naming restrictions apply.](Naming restrictions apply) A leading forward-slash ('/') is implied, (e.g. 'foo/bar' is the same as '/foo/bar'). |
+| The name of the key to be referenced. [Naming restrictions apply.](../key/index.md#on-key-naming) A leading forward-slash ('/') is implied, (e.g. 'foo/bar' is the same as '/foo/bar'). |
 
 | roomName |
 |:---|

@@ -1,4 +1,8 @@
-# model#$omit
+# $omit
+
+```
+Stability: 3 - Stable
+```
 
 Returns a new object, sans properties prefixed with `$`.
 

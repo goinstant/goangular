@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/goinstant/goangular.png)](https://travis-ci.org/goinstant/goangular)
+[![Build Status](https://travis-ci.org/goinstant/goangular.png?branch=master)](https://travis-ci.org/goinstant/goangular?branch=master)
 
 [![GoAngular](https://developers.goinstant.com/v1/GoAngular/static/images/goangular_logo.png)](https://www.goangular.org)
 

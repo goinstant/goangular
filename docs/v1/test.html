@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html ng-app="Chat">
+<head>
+  <title>GoAngular Chat Tutorial</title>
+</head>
+<body ng-controller="ChatCtrl">
+  <h1>Getting Started with GoAngular Chat</h1>
+
+  <!-- Messages displayed -->
+  <div id="messages">
+    <div class="message" ng-repeat="message in messages">
+      <span class="author">{{ message.author }}</span>
+      <span class="content">{{ message.content }}</span>
+    </div>
+  </div>
+
+  <!-- New message form -->
+  <form ng-submit="sendMessage()">
+    <input ng-model="author">
+    <input ng-model="messageContent">
+    <button type="submit">Send</button>
+  </form>
+
+  <!-- Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.1/angular.min.js"></script>
+  <script src="https://cdn.goinstant.net/v1/platform.min.js"></script>
+  <script src="https://cdn.goinstant.net/integrations/goangular/v3.1.1/goangular.min.js"></script>
+
+  <!-- Angular App -->
+  <script>
+    var chatApp = angular.module('Chat', ['goangular']);
+
+    chatApp.config(function($goConnectionProvider) {
+      $goConnectionProvider.$set('https://goinstant.net/cmac/goangular');
+    });
+
+    chatApp.controller('ChatCtrl', function($scope, $goKey) {
+      $scope.messages = $goKey('messages');
+      $scope.messages.$sync();
+
+      $scope.sendMessage = function() {
+        var message = {
+          content: $scope.messageContent,
+          author: $scope.author
+        };
+
+        // Each method returns a promise, we can use that to confirm that item was
+        // added successfully
+        $scope.messages.$add(message).then(function() {
+          $scope.messageContent = '';
+        });
+
+        $scope.messages.$on('add', { local: true, listener: function(val, con) {
+          console.log(val, con, $scope.messages);
+          }});
+      }
+    });
+  </script>
+</body>
+</html>

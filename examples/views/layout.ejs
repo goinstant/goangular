@@ -1,0 +1,60 @@
+<!doctype html>
+<html ng-app="GoAngularExamples">
+<head>
+  <meta charset="utf-8">
+  <title><%- title %></title>
+  <link type="text/css" rel="stylesheet" href="/css/layout.css" />
+  <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+  <%- stylesheets %>
+
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.12/angular.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.12/angular-route.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
+  <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+  <script src="<%- platform %>"></script>
+  <script src="<%- goangular %>"></script>
+</head>
+<body>
+  <header ng-controller="envSelectorCtrl">
+    <div class="select-container" ng-controller="envSelectorCtrl">
+      <label>Environment: </label>
+      <select class="form-control" ng-model="selected" ng-options="env.value for env in envs" ng-change="setEnv()"></select>
+    </div>
+    <div class="select-container" ng-controller="exSelectorCtrl">
+      <label>Example: </label>
+      <select class="form-control example" ng-model="selected" ng-options="ex for ex in examples" ng-change="loadExample()"></select>
+    </div>
+  </header>
+
+  <!-- Require goangular if env is local-->
+  <% if (env === 'local') { %>
+    <script type="text/javascript">
+      require('goangular');
+    </script>
+  <% } %>
+
+  <%- body %>
+
+  <!-- Angular app -->
+  <script src="/js/main.js"></script>
+
+  <!-- Angular app config -->
+  <script type="text/javascript">
+    (function() {
+      var module = angular.module('config');
+      module.constant('token', '<%- token %>');
+      module.constant('connectUrl', '<%- connectUrl %>');
+      module.constant('envSelected', '<%- env %>');
+      module.constant('envs', <%- JSON.stringify(envs) %>);
+      module.constant('exSelected', '<%- ex %>');
+      module.constant('examples', <%- JSON.stringify(examples) %>);
+    })();
+  </script>
+
+  <!-- Angular environment controls -->
+  <script src="/js/index.js"></script>
+
+  <%- scripts %>
+</body>
+</html>

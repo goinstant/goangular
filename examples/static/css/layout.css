@@ -1,0 +1,26 @@
+body {
+  background-color: #eeeeee;
+}
+
+header {
+  background-color: #efefef;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-bottom: 2px solid #cccccc;
+}
+
+header .select-container {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+header .form-control {
+  display: inline-block;
+  width: 150px;
+  height: 25px;
+}
+
+header .form-control.example {
+  width: 250px;
+}

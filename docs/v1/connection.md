@@ -1,4 +1,4 @@
-# $goConnnection
+# $goConnection
 
 ```
 Stability: 3 - Stable

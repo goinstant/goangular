@@ -1,0 +1,15 @@
+<% layout('../layout') %>
+<% script('../examples/js/goconnection-options.js') %>
+<% stylesheet('../examples/css/goconnection.css') %>
+
+<div class="container" ng-controller="exampleCtrl">
+  <div class="jumbotron {{ connected }}">
+    <h3>{{ message }}</h3>
+    <h4>{{ room }}</h4>
+    <h5>
+      <ul>
+        <li ng-repeat="user in users">{{ user.displayName + ' - ' + user.id }}</li>
+      </ul>
+    </h5>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+<% layout('../layout') %>
+<% script('../examples/js/gokey-basic.js') %>
+
+<div class="container" ng-controller="sweetController">
+  <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
+    <div class="col-md-6">
+      <h5>description: {{description}}</h5>
+      <div class="input-group">
+        <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control">
+        <span class="input-group-btn">
+          <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
+        </span>
+      </div><!-- /input-group -->
+      <br>
+      <ul class="list-group">
+        <li class="list-group-item" ng-repeat="(key, todo) in todos">{{todo.description}}&nbsp;<button ng-click="remove(key)" class="pull-right btn btn-xs btn-danger">x</button></li>
+      </ul>
+    </div><!-- /.col-lg-6 -->
+    <div class="col-md-6">
+      <div class="jumbotron">
+        <h1>GoAngular Todo</h1>
+        <br>
+        <h5>Current User: <input type="text" ng-model="currentUser.displayName"/></h5>
+      </div>
+    </div>
+    <!-- <p>{{ text }}</p> -->
+  </div>
+</div>

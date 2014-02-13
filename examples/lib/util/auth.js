@@ -22,7 +22,7 @@ auth.generateJWT = function(cb) {
     var claims = {
       domain: config.iss || 'localhost',
       id: 'goangular-' + rand,
-      displayName: 'goangular-local-tester'
+      displayName: 'goangular-dev'
     };
 
     signer.sign(claims, cb);

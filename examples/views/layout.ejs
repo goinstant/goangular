@@ -18,7 +18,7 @@
 <body>
   <header ng-controller="envSelectorCtrl">
     <div class="select-container" ng-controller="envSelectorCtrl">
-      <label>Environment: </label>
+      <label>GoAngular Environment: </label>
       <select class="form-control" ng-model="selected" ng-options="env.value for env in envs" ng-change="setEnv()"></select>
     </div>
     <div class="select-container" ng-controller="exSelectorCtrl">

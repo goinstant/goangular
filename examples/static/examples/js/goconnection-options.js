@@ -11,12 +11,10 @@
 
 var example = angular.module('example');
 
-example.config(['connectUrl', '$goConnectionProvider',
-  function(connectUrl, $goConnectionProvider) {
+example.config(['connectUrl', 'token', '$goConnectionProvider',
+  function(connectUrl, token, $goConnectionProvider) {
     var options = {
-      user: {
-        displayName: 'Goangular Tester'
-      },
+      user: token,
       room: 'goangularTestRoom'
     };
 

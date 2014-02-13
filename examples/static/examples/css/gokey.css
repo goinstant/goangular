@@ -1,0 +1,88 @@
+.text-input {
+  padding-left: 20px;
+  width: 50%;
+}
+
+.todos {
+  background-color: #ffffff;
+  margin-top: 20px;
+}
+
+.todos li:first-child {
+  border-top: 2px solid #cccccc;
+}
+
+.todos li {
+  border-bottom: 2px solid #cccccc;
+  background-color: #fcfcfc;
+}
+
+.todos li button {
+  margin: 10px 5px;
+}
+
+.todos li input {
+  font-size: 16px;
+  padding: 5px;
+  margin: 5px;
+}
+
+.todos li input.todo-complete {
+  margin-left: 15px;
+}
+
+.todos li input.todo-text {
+  border: 1px solid #eeeeee;
+  width: 75%;
+}
+
+.change {
+  background-color: #ffffff;
+}
+
+.change .panel-body {
+  font-size: 16px;
+}
+
+label {
+  margin-right: 5px;
+}
+
+.counter {
+  background-color: #ffffff;
+  margin-left: 10px;
+}
+
+.log {
+  font-size: 16px;
+  background-color: #ffffff;
+}
+
+.panel-title {
+  display: inline-block;
+}
+
+.controls {
+  font-size: 14px;
+  float: right;
+}
+
+.controls input {
+  margin-right: 10px;
+}
+
+.desc {
+  font-size: 14px;
+  background-color: #fcfcfc;
+  margin-bottom: 20px;
+  padding: 5px;
+}
+
+.desc ul li:nth-child(even) {
+  background-color: #efefef;
+}
+
+.send {
+  margin: 0px 5px 5px;
+  min-width: 125px;
+}

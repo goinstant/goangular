@@ -1,6 +1,0 @@
-<% layout('../layout') %>
-<% script('../examples/js/template.js.example') %>
-
-<div class="container" ng-controller="exampleCtrl">
-
-</div>

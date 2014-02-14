@@ -1,3 +1,10 @@
+<a name="v3.2.2"></a>
+### v3.2.2 (2014-02-14)
+
+#### Bug Fixes
+
+* **fix(key/query sync):** $key must return a model**
+
 <a name="v3.2.1"></a>
 ### v3.2.1 (2014-02-06)
 

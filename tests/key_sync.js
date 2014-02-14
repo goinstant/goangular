@@ -49,15 +49,16 @@ describe('GoAngular.keySync', function() {
     beforeEach(function() {
       factory = keySync($parse, $timeout);
       sync = factory(fakeKey);
+      model = {};
+      model.$$emitter = {};
+      model.$$emitter.emit = sinon.stub();
+      model.$$key = fakeKey;
     });
 
     describe('$initialize', function() {
 
       beforeEach(function() {
         sync.$initialize(model);
-        model = {};
-        model.$$emitter = {};
-        model.$$emitter.emit = sinon.stub();
       });
 
       it('retrieves the current value', function() {
@@ -89,7 +90,7 @@ describe('GoAngular.keySync', function() {
         fakeKey.get = sinon.stub().yields(null, collection);
         factory(fakeKey).$initialize(model);
 
-        assert.deepEqual(model, _.merge(model, collection));
+        assert.deepEqual(model, _.merge(_.cloneDeep(model), collection));
       });
 
       it('extends the model if an array is returned', function() {
@@ -101,7 +102,20 @@ describe('GoAngular.keySync', function() {
           obj[key] = value;
         });
 
-        assert.deepEqual(model, _.merge(model, obj));
+        assert.deepEqual(model, _.merge(_.cloneDeep(model), obj));
+      });
+
+      it('uses the model key when performing the initial #get', function() {
+        var fakeChildKey = createFakeKey('childKey');
+        var fakeCollection2 = {
+          childFoo: 'childFoo',
+          childBar: 'childBar'
+        };
+
+        fakeChildKey.get = sinon.stub().yields(null, fakeCollection2);
+        model.$$key = fakeChildKey;
+        factory(fakeKey).$initialize(model);
+        assert.deepEqual(model, _.merge(_.cloneDeep(model), fakeCollection2));
       });
 
       it('returns a model', function() {
@@ -124,31 +138,31 @@ describe('GoAngular.keySync', function() {
           desc: 'updates the models primitive value for int',
           value: 5,
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: _.merge(model, { $value: 5 })
+          expect: _.merge(_.cloneDeep(model), { $value: 5 })
         },
         {
           desc: 'updates the models primitive value for string',
           value: 'foo',
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: _.merge(model, { $value: 'foo' })
+          expect: _.merge(_.cloneDeep(model), { $value: 'foo' })
         },
         {
           desc: 'updates the models primitive value for boolean',
           value: false,
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: _.merge(model, { $value: false })
+          expect: _.merge(_.cloneDeep(model), { $value: false })
         },
         {
           desc: 'updates the model with object',
           value: { foo: 'bar' },
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: _.merge(model, { foo: 'bar' })
+          expect: _.merge(_.cloneDeep(model), { foo: 'bar' })
         },
         {
           desc: 'updates the model with Array',
           value: ['foo', 'bar'],
           context: { key: '/currentKey', currentKey: '/currentKey' },
-          expect: _.merge(model, { 0: 'foo', 1: 'bar' })
+          expect: _.merge(_.cloneDeep(model), { 0: 'foo', 1: 'bar' })
         },
         {
           desc: 'will add a child primitive',
@@ -158,7 +172,7 @@ describe('GoAngular.keySync', function() {
             command: 'ADD',
             addedKey: '/currentKey/foo'
           },
-          expect: _.merge(model, { foo: 'bar' })
+          expect: _.merge(_.cloneDeep(model), { foo: 'bar' })
         },
         {
           desc: 'will merge changes into an exisiting model',
@@ -197,8 +211,9 @@ describe('GoAngular.keySync', function() {
 
       _.each(keyUpdateData, function(data) {
         it(data.desc, function() {
-          sync.$$model = data.model || model;
+          sync.$$model = _.clone(data.model) || _.clone(model);
           sync.$$handleUpdate(data.value, data.context);
+
           assert.deepEqual(sync.$$model, data.expect);
         });
       });
@@ -229,7 +244,7 @@ describe('GoAngular.keySync', function() {
       _.each(keyUpdateData, function(data) {
         it(data.desc, function() {
           sync.$initialize(model);
-          sync.$$model = data.model || model;
+          sync.$$model = _.clone(data.model);
           sync.$$handleRemove(data.value, data.context);
 
           if (data.context.key === data.context.currentKey) {

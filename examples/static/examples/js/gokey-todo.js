@@ -69,6 +69,7 @@ example.controller('exampleCtrl', ['$scope', '$goKey',
     };
 
     $scope.setListener = function() {
+      // $scope.state = $on/$off
       $scope.todos[$scope.state]('set', opts, listener);
     };
 

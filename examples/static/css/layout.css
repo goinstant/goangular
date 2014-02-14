@@ -19,6 +19,7 @@ header .form-control {
   display: inline-block;
   width: 150px;
   height: 25px;
+  padding: 2px;
 }
 
 header .form-control.example {

@@ -1,5 +1,5 @@
 /* node:false browser: true */
-/* globals angular, _ */
+/* globals angular, _, window */
 
 (function() {
 
@@ -7,8 +7,8 @@
 
 var module = angular.module('index');
 
-module.factory('envConfig',
-  ['envSelected', 'envs', function(envSelected, envs) {
+module.factory('platformConfig',
+  ['platformEnvs', 'platformEnv', function(envs, env) {
     var envArray = [];
 
     _.each(envs, function(path, key) {
@@ -20,32 +20,52 @@ module.factory('envConfig',
 
     var data = {
       envs: envArray,
-      selected: envSelected
+      selected: env
     };
 
     return data;
   }
 ]);
 
-module.factory('exConfig',
-  ['exSelected', 'examples', function(exSelected, examples) {
+module.factory('goangularConfig',
+  ['goangularEnvs', 'goangularEnv', function(envs, env) {
+    var envArray = [];
+
+    _.each(envs, function(path, key) {
+      envArray.push({
+        value: key,
+        path: path
+      });
+    });
+
     var data = {
-      examples: examples,
-      selected: exSelected
+      envs: envArray,
+      selected: env
     };
 
     return data;
   }
 ]);
 
-module.factory('environment', function($http) {
+module.factory('exampleConfig',
+  ['examples', 'example', function(exs, ex) {
+    var data = {
+      examples: exs,
+      selected: ex
+    };
+
+    return data;
+  }
+]);
+
+module.factory('platformEnvConfig', function($http) {
   var service = {
     set: function(env) {
       var params = {
         env: env
       };
 
-      $http.post('/setEnvironment', params).success(function() {
+      $http.post('/setPlatform', params).success(function() {
         window.location.reload();
       });
     }
@@ -54,7 +74,23 @@ module.factory('environment', function($http) {
   return service;
 });
 
-module.factory('example', function() {
+module.factory('goangularEnvConfig', function($http) {
+  var service = {
+    set: function(env) {
+      var params = {
+        env: env
+      };
+
+      $http.post('/setGoangular', params).success(function() {
+        window.location.reload();
+      });
+    }
+  };
+
+  return service;
+});
+
+module.factory('exampleRoute', function() {
   var service = {
     load: function(name) {
       window.location = '/examples/' + name;
@@ -64,30 +100,52 @@ module.factory('example', function() {
   return service;
 });
 
-module.controller('envSelectorCtrl', function($scope, environment, envConfig) {
-  $scope.envs = envConfig.envs;
+module.controller('platformEnvCtrl',
+  function($scope, platformEnvConfig, platformConfig) {
+    $scope.envs = platformConfig.envs;
 
-  _.each($scope.envs, function(env) {
-    if (env.value === envConfig.selected) {
-      $scope.selected = env;
+    _.each($scope.envs, function(env) {
+      if (env.value === platformConfig.selected) {
+        $scope.selected = env;
 
-      return false;
-    }
-  });
+        return false;
+      }
+    });
 
-  $scope.setEnv = function() {
-    environment.set($scope.selected);
-  };
-});
+    $scope.setPlatform = function() {
+      platformEnvConfig.set($scope.selected);
+    };
+  }
+);
 
-module.controller('exSelectorCtrl', function($scope, example, exConfig) {
-  $scope.examples = exConfig.examples;
+module.controller('goangularEnvCtrl',
+  function($scope, goangularEnvConfig, goangularConfig) {
+    $scope.envs = goangularConfig.envs;
 
-  $scope.selected = exConfig.selected;
+    _.each($scope.envs, function(env) {
+      if (env.value === goangularConfig.selected) {
+        $scope.selected = env;
 
-  $scope.loadExample = function() {
-    example.load($scope.selected);
-  };
-});
+        return false;
+      }
+    });
+
+    $scope.setGoangular = function() {
+      goangularEnvConfig.set($scope.selected);
+    };
+  }
+);
+
+module.controller('exSelectorCtrl',
+  function($scope, exampleRoute, exampleConfig) {
+    $scope.examples = exampleConfig.examples;
+
+    $scope.selected = exampleConfig.selected;
+
+    $scope.loadExample = function() {
+      exampleRoute.load($scope.selected);
+    };
+  }
+);
 
 })();

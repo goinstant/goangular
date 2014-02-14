@@ -1,19 +1,24 @@
 .text-input {
   padding-left: 20px;
   width: 50%;
+  border: 1px solid #ddd;
+}
+
+.main {
+  background-color: #ffffff;
 }
 
 .todos {
-  background-color: #ffffff;
   margin-top: 20px;
 }
 
 .todos li:first-child {
-  border-top: 2px solid #cccccc;
+  border-top: 1px solid #ddd;
 }
 
 .todos li {
-  border-bottom: 2px solid #cccccc;
+  padding: 0 10px;
+  border-bottom: 1px solid #ddd;
   background-color: #fcfcfc;
 }
 
@@ -75,6 +80,15 @@ label {
   font-size: 14px;
   background-color: #fcfcfc;
   margin-bottom: 20px;
+  padding: 0;
+  border: 1px solid #ddd;
+}
+
+.desc ul {
+  margin: 0;
+}
+
+.desc ul li {
   padding: 5px;
 }
 

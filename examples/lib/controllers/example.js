@@ -16,10 +16,11 @@ example.load = function(req, res) {
 
     var example = req.params.name || null;
 
-    data.ex = example;
+    data.example = example;
     data.title = 'GoAngular Examples - ' + example;
     res.render('examples/' + example, data, function(err, html) {
       if (err) {
+        console.log(err);
         res.redirect('/examples');
       }
 
@@ -28,10 +29,18 @@ example.load = function(req, res) {
   });
 };
 
-example.setEnv = function(req, res) {
+example.setGoangular = function(req, res) {
   var env = req.body.env.value;
 
-  req.session.env = env;
+  req.session.goangularEnv = env;
+
+  res.redirect('/examples');
+};
+
+example.setPlatform = function(req, res) {
+  var env = req.body.env.value;
+
+  req.session.platformEnv = env;
 
   res.redirect('/examples');
 };

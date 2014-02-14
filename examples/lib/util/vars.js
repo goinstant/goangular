@@ -17,23 +17,24 @@ vars.constructor = function() {};
 
 vars.generate = function(session, cb) {
   var data = {
-    platform: config.platform,
-    connectUrl: config.connectUrl,
-    env: session.env || config.defaultEnv,
-    envs: config.envs,
-    ex: null,
+    platformEnv: session.platformEnv || config.defaultPlatform,
+    goangularEnv: session.goangularEnv || config.defaultGoangular,
+    platformEnvs: config.platform,
+    goangularEnvs: config.goangular,
+    example: null,
     examples: this.getExamplesList()
   };
 
-  data.goangular = config.envs[data.env] || config.envs[data.env];
+  data.platformCdn = config.platform[data.platformEnv].cdn;
+  data.goangularCdn = config.goangular[data.goangularEnv];
 
-  if (session.token) {
+  if (session.token && session.tokenEnv === data.platformEnv) {
     data.token = session.token;
 
     return cb(data);
   }
 
-  auth.generateJWT(function(err, token) {
+  auth.generateJWT(data.platformEnv, function(err, token) {
     if (err) {
       console.log(err);
 
@@ -41,6 +42,8 @@ vars.generate = function(session, cb) {
     }
 
     data.token = token;
+
+    session.tokenEnv = data.platformEnv;
     session.token = token;
 
     return cb(data);

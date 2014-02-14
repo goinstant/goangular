@@ -13,15 +13,15 @@ var config = require('../../../config/config.js');
 var auth = exports;
 auth.constructor = function() {};
 
-auth.generateJWT = function(cb) {
-  var signer = new Signer(config.appSecret);
+auth.generateJWT = function(platformEnv, cb) {
+  var signer = new Signer(config.platform[platformEnv].appSecret);
 
   crypto.randomBytes(20, function(err, buffer) {
     var rand = buffer.toString('hex');
 
     var claims = {
-      domain: config.iss || 'localhost',
-      id: 'goangular-' + rand,
+      domain: config.iss || 'goangularExamples',
+      id: platformEnv + '-goangular-' + rand,
       displayName: 'goangular-dev'
     };
 

@@ -12,14 +12,18 @@
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
   <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
-  <script src="<%- platform %>"></script>
-  <script src="<%- goangular %>"></script>
+  <script src="<%- platformCdn %>"></script>
+  <script src="<%- goangularCdn %>"></script>
 </head>
 <body>
-  <header ng-controller="envSelectorCtrl">
-    <div class="select-container" ng-controller="envSelectorCtrl">
-      <label>GoAngular Environment: </label>
-      <select class="form-control" ng-model="selected" ng-options="env.value for env in envs" ng-change="setEnv()"></select>
+  <header>
+    <div class="select-container" ng-controller="platformEnvCtrl">
+      <label>Platform: </label>
+      <select class="form-control" ng-model="selected" ng-options="env.value for env in envs" ng-change="setPlatform()"></select>
+    </div>
+    <div class="select-container" ng-controller="goangularEnvCtrl">
+      <label>GoAngular: </label>
+      <select class="form-control" ng-model="selected" ng-options="env.value for env in envs" ng-change="setGoangular()"></select>
     </div>
     <div class="select-container" ng-controller="exSelectorCtrl">
       <label>Example: </label>
@@ -28,7 +32,7 @@
   </header>
 
   <!-- Require goangular if env is local-->
-  <% if (env === 'local') { %>
+  <% if (goangularEnv === 'local') { %>
     <script type="text/javascript">
       require('goangular');
     </script>
@@ -42,13 +46,17 @@
   <!-- Angular app config -->
   <script type="text/javascript">
     (function() {
+      var platformEnvs = <%- JSON.stringify(platformEnvs) %>;
       var module = angular.module('config');
+
       module.constant('token', '<%- token %>');
-      module.constant('connectUrl', '<%- connectUrl %>');
-      module.constant('envSelected', '<%- env %>');
-      module.constant('envs', <%- JSON.stringify(envs) %>);
-      module.constant('exSelected', '<%- ex %>');
+      module.constant('goangularEnv', '<%- goangularEnv %>');
+      module.constant('goangularEnvs', <%- JSON.stringify(goangularEnvs) %>);
+      module.constant('platformEnv', '<%- platformEnv %>');
+      module.constant('platformEnvs', platformEnvs);
+      module.constant('example', '<%- example %>');
       module.constant('examples', <%- JSON.stringify(examples) %>);
+      module.constant('connectUrl', platformEnvs['<%- platformEnv %>'].connectUrl);
     })();
   </script>
 

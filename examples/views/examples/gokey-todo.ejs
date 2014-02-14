@@ -1,5 +1,5 @@
 <% layout('../layout') %>
-<% script('../examples/js/' + ex + '.js') %>
+<% script('../examples/js/' + example + '.js') %>
 
 <% stylesheet('../examples/css/gokey.css') %>
 
@@ -13,32 +13,34 @@
         <li>Click the on/off radio buttons to log the last todo that was edited. (model#$on/$off)</li>
       </ul>
     </div>
-    <input submit="addTodo()" ng-model="textInput" class="text-input" placeholder="Enter Your Todo"/>
-    <button ng-click="addTodo()" class="btn btn-lg btn-success send add">Add</button>
-    <button ng-click="clearCompleted()" class="btn btn-lg btn-warning send">Clear Completed</button>
-    <ul class="list-unstyled jumbotron todos">
-      <li ng-repeat="(id, todo) in todos">
-        <div>
-          <input type="checkbox" class="todo-completed" ng-model="todo.completed" ng-change="setCompleted(id, todo.completed)"/>
-          <input type="text" class="todo-text" submit="editTodo(id, todo.text)" ng-model="todo.text" />
-          <button ng-click="editTodo(id, todo.text)" class="btn btn-s btn-success">Edit</button>
-          <button ng-click="removeTodo(id)" class="btn btn-s btn-danger">X</button>
+    <div class="jumbotron main">
+      <input submit="addTodo()" ng-model="textInput" class="text-input" placeholder="Enter Your Todo"/>
+      <button ng-click="addTodo()" class="btn btn-lg btn-success send add">Add</button>
+      <button ng-click="clearCompleted()" class="btn btn-lg btn-warning send">Clear Completed</button>
+      <ul class="list-unstyled todos">
+        <li ng-repeat="(id, todo) in todos">
+          <div>
+            <input type="checkbox" class="todo-completed" ng-model="todo.completed" ng-change="setCompleted(id, todo.completed)"/>
+            <input type="text" class="todo-text" submit="editTodo(id, todo.text)" ng-model="todo.text" />
+            <button ng-click="editTodo(id, todo.text)" class="btn btn-s btn-success">Edit</button>
+            <button ng-click="removeTodo(id)" class="btn btn-s btn-danger">X</button>
+          </div>
+        </li>
+      </ul>
+      <div class="panel panel-default change">
+        <div class="panel-heading">
+          <h3 class="panel-title">Last Edit:</h3>
+          <form class="controls">
+            <label>On</label><input type="radio" value="$on" ng-model="state" ng-change="setListener()" />
+            <label>Off</label><input type="radio" value="$off" ng-model="state" ng-change="setListener()" />
+          </form>
         </div>
-      </li>
-    </ul>
-    <div class="panel panel-default change">
-      <div class="panel-heading">
-        <h3 class="panel-title">Last Edit:</h3>
-        <form class="controls">
-          <label>On</label><input type="radio" value="$on" ng-model="state" ng-change="setListener()" />
-          <label>Off</label><input type="radio" value="$off" ng-model="state" ng-change="setListener()" />
-        </form>
-      </div>
-      <div class="panel-body">
-        <ul class="list-unstyled">
-          <li><label>Todo Id:</label>{{ change.msgId }}</li>
-          <li><label>New todo Text:</label>{{ change.text }}</li>
-        </ul>
+        <div class="panel-body">
+          <ul class="list-unstyled">
+            <li><label>Todo Id:</label>{{ change.msgId }}</li>
+            <li><label>New todo Text:</label>{{ change.text }}</li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

@@ -21,5 +21,7 @@ routes.load = function(app) {
 
   app.get('/examples/:name', example.load);
 
-  app.post('/setEnvironment', example.setEnv);
+  app.post('/setGoangular', example.setGoangular);
+
+  app.post('/setPlatform', example.setPlatform);
 };

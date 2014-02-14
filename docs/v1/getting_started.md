@@ -171,6 +171,7 @@ Let's see it all tied together:
   <form ng-submit="sendMessage()">
     <input ng-model="author">
     <input ng-model="messageContent">
+    <button type="submit">Send</button>
   </form>
 
   <!-- Dependencies -->

@@ -43,7 +43,7 @@ describe('GoAngular.Model', function() {
     var model;
 
     beforeEach(function() {
-      model = new Model(fakeConn, fakeKey, fakeSync);
+      model = new Model(fakeConn, fakeKey, fakeSync, Model);
     });
 
     describe('$sync', function() {

@@ -8524,7 +8524,12 @@ goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
 goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
 goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
-goangular.factory('$goQuery', [ '$goQuerySync', '$goConnection', queryFactory]);
+goangular.factory('$goQuery', [
+  '$goQuerySync',
+  '$goKey',
+  '$goConnection',
+  queryFactory
+]);
 
 });
 require.register("goangular/lib/query_factory.js", function(exports, require, module){
@@ -8551,7 +8556,7 @@ var _ = require('lodash');
  * @param {Object} $conn - GoInstant connection
  * @returns {Function} option validation & instance creation
  */
-module.exports = function queryFactory($querySync, $conn) {
+module.exports = function queryFactory($querySync, $goKey, $conn) {
 
   /**
    * @public
@@ -8569,7 +8574,7 @@ module.exports = function queryFactory($querySync, $conn) {
     var query = key.query(a.expr || {}, a.options);
     var sync = $querySync(query);
 
-    return new Model($conn, key, sync);
+    return new Model($conn, key, sync, $goKey);
   };
 };
 
@@ -8746,7 +8751,7 @@ module.exports = function keyFactory($keySync, $conn) {
     var key = _.isObject(a.key) ? a.key : $conn.$key(a.key, a.room);
     var sync = $keySync(key);
 
-    return new Model($conn, key, sync);
+    return new Model($conn, key, sync, $key);
   };
 };
 
@@ -9208,10 +9213,11 @@ var LOCAL_EVENTS = ['ready', 'error'];
  * @param {Object} $conn - GoInstant connection service
  * @param {Object|String} key - GoInstant Key or string key name
  */
-function Model($conn, key, $sync) {
+function Model($conn, key, $sync, factory) {
   _.bindAll(this);
 
   _.extend(this, {
+    $$factory: factory,
     $$sync: $sync,
     $$conn: $conn,
     $$key: key,
@@ -9248,7 +9254,7 @@ Model.prototype.$sync = function() {
 Model.prototype.$key = function(keyName) {
   var key = this.$$key.key(keyName);
 
-  return new Model(this.$$conn, key, this.$$sync);
+  return this.$$factory(key);
 };
 
 /**

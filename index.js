@@ -30,4 +30,9 @@ goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
 goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
 goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
-goangular.factory('$goQuery', [ '$goQuerySync', '$goConnection', queryFactory]);
+goangular.factory('$goQuery', [
+  '$goQuerySync',
+  '$goKey',
+  '$goConnection',
+  queryFactory
+]);

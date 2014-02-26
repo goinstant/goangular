@@ -18,11 +18,15 @@
     "lib/query_factory.js",
     "lib/query_sync.js",
     "lib/key_factory.js",
+    "lib/key_sync_factory.js",
     "lib/key_sync.js",
     "lib/connection.js",
     "lib/connection_factory.js",
     "lib/model.js",
     "lib/util/normalize.js",
-    "lib/util/args.js"
+    "lib/util/args.js",
+    "lib/users_factory.js",
+    "lib/users_sync_factory.js",
+    "lib/users_sync.js"
   ]
 }

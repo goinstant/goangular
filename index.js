@@ -12,11 +12,14 @@
 
 var connectionFactory = require('./lib/connection_factory');
 
-var keySync = require('./lib/key_sync');
+var keySyncFactory = require('./lib/key_sync_factory');
 var keyFactory = require('./lib/key_factory');
 
 var querySync = require('./lib/query_sync');
 var queryFactory = require('./lib/query_factory');
+
+var usersSync = require('./lib/users_sync_factory');
+var usersFactory = require('./lib/users_factory');
 
 /** Module Registration */
 
@@ -26,7 +29,7 @@ var goangular = angular.module('goangular', []);
 
 goangular.provider('$goConnection', connectionFactory);
 
-goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
+goangular.factory('$goKeySync', [ '$parse', '$timeout', keySyncFactory ]);
 goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
 goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
@@ -35,4 +38,11 @@ goangular.factory('$goQuery', [
   '$goKey',
   '$goConnection',
   queryFactory
+]);
+
+goangular.factory('$goUsersSync', [ '$parse', '$timeout', usersSync ]);
+goangular.factory('$goUsers', [
+  '$goUsersSync',
+  '$goConnection',
+  usersFactory
 ]);

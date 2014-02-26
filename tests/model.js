@@ -12,6 +12,7 @@ describe('GoAngular.Model', function() {
   var Model = require('goangular/lib/model');
 
   var sandbox;
+  var fakeRoom;
   var fakeKey;
   var fakeSync;
   var fakeConn;
@@ -20,7 +21,8 @@ describe('GoAngular.Model', function() {
 
   before(function() {
     sandbox = sinon.sandbox.create();
-    fakeKey = createFakeKey();
+    fakeRoom = createFakeRoom('lobby');
+    fakeKey = createFakeKey('fakeKey');
 
     fakePromise = {
       then: function(cb) { cb(); return fakePromise; },
@@ -96,9 +98,9 @@ describe('GoAngular.Model', function() {
       it('add an event listener', function() {
         var fakeLstner = sinon.stub();
 
-        model.$on('eventName', fakeLstner);
+        model.$on('set', fakeLstner);
 
-        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeLstner);
+        sinon.assert.calledWith(fakeKey.on, 'set', fakeLstner);
       });
 
       it('add an event listener with options object', function() {
@@ -108,9 +110,9 @@ describe('GoAngular.Model', function() {
 
         var fakeLstner = sinon.stub();
 
-        model.$on('eventName', fakeOpts, fakeLstner);
+        model.$on('leave', fakeOpts, fakeLstner);
 
-        sinon.assert.calledWith(fakeKey.on, 'eventName', fakeOpts, fakeLstner);
+        sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeLstner);
       });
     });
 
@@ -119,9 +121,9 @@ describe('GoAngular.Model', function() {
       it('remove an event listener', function() {
         var fakeLstner = sinon.stub();
 
-        model.$off('eventName', fakeLstner);
+        model.$off('add', fakeLstner);
 
-        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeLstner);
+        sinon.assert.calledWith(fakeKey.off, 'add', fakeLstner);
       });
 
       it('remove an event listener with options object', function() {
@@ -131,9 +133,9 @@ describe('GoAngular.Model', function() {
 
         var fakeLstner = sinon.stub();
 
-        model.$off('eventName', fakeOpts, fakeLstner);
+        model.$off('remove', fakeOpts, fakeLstner);
 
-        sinon.assert.calledWith(fakeKey.off, 'eventName', fakeOpts, fakeLstner);
+        sinon.assert.calledWith(fakeKey.off, 'remove', fakeOpts, fakeLstner);
       });
     });
 
@@ -150,6 +152,7 @@ describe('GoAngular.Model', function() {
   function createFakeKey(name) {
     var fakeKey = {
       name: name,
+      room: sinon.stub().returns(fakeRoom),
       set: sandbox.stub(),
       add: sandbox.stub(),
       remove: sandbox.stub(),
@@ -160,5 +163,16 @@ describe('GoAngular.Model', function() {
     fakeKey.key = sinon.spy(function() { return fakeKey; });
 
     return fakeKey;
+  }
+
+  function createFakeRoom(name) {
+    return {
+      name: name,
+      on: sandbox.stub(),
+      off: sandbox.stub(),
+      join: sandbox.stub(),
+      leave: sandbox.stub(),
+      users: createFakeKey('.users')
+    };
   }
 });

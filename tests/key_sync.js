@@ -10,7 +10,7 @@ describe('GoAngular.keySync', function() {
   var _ = window._;
 
   /* Component Dependencies */
-  var keySync = require('goangular/lib/key_sync');
+  var keySync = require('goangular/lib/key_sync_factory');
 
   var sandbox;
   var fakeKey;

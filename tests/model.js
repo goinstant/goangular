@@ -10,6 +10,9 @@ describe('GoAngular.Model', function() {
 
   /* Component Dependencies */
   var Model = require('goangular/lib/model');
+  var KeyModel = require('goangular/lib/key_model');
+  var UsersModel = require('goangular/lib/users_model');
+  var QueryModel = require('goangular/lib/query_model');
 
   var sandbox;
   var fakeRoom;
@@ -44,107 +47,155 @@ describe('GoAngular.Model', function() {
   describe('initialization', function() {
     var model;
 
-    beforeEach(function() {
-      model = new Model(fakeConn, fakeKey, fakeSync, Model);
-    });
+    describe('base model', function() {
 
-    describe('$sync', function() {
+      beforeEach(function() {
+        model = new Model(fakeConn, fakeKey, fakeSync, Model);
+      });
 
-      it('delegates to sync object', function() {
-        model.$sync();
+      describe('$sync', function() {
 
-        sinon.assert.calledWith(initialize, model);
+        it('delegates to sync object', function() {
+          model.$sync();
+
+          sinon.assert.calledWith(initialize, model);
+        });
+      });
+
+      describe('$key', function() {
+
+        it('creates a new instance of model', function() {
+          model.$key('keyName');
+
+          sinon.assert.calledWith(fakeKey.key, 'keyName');
+        });
+      });
+
+      describe('$on', function() {
+
+        it('add an event listener', function() {
+          var fakeLstner = sinon.stub();
+
+          model.$on('set', fakeLstner);
+
+          sinon.assert.calledWith(fakeKey.on, 'set', fakeLstner);
+        });
+
+        it('add an event listener with options object', function() {
+          var fakeOpts = {
+            local: true
+          };
+
+          var fakeLstner = sinon.stub();
+
+          model.$on('leave', fakeOpts, fakeLstner);
+
+          sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeLstner);
+        });
+      });
+
+      describe('$off', function() {
+
+        it('remove an event listener', function() {
+          var fakeLstner = sinon.stub();
+
+          model.$off('add', fakeLstner);
+
+          sinon.assert.calledWith(fakeKey.off, 'add', fakeLstner);
+        });
+
+        it('remove an event listener with options object', function() {
+          var fakeOpts = {
+            bubble: true
+          };
+
+          var fakeLstner = sinon.stub();
+
+          model.$off('remove', fakeOpts, fakeLstner);
+
+          sinon.assert.calledWith(fakeKey.off, 'remove', fakeOpts, fakeLstner);
+        });
+      });
+
+      describe('$omit', function() {
+
+        it('returns an object sans $-prefixed properties', function() {
+          var result = model.$omit();
+
+          assert.deepEqual(result, {});
+        });
       });
     });
 
-    describe('$key', function() {
+    describe('key model', function() {
+      var keyModel;
 
-      it('creates a new instance of model', function() {
-        model.$key('keyName');
+      beforeEach(function() {
+        keyModel = new KeyModel(fakeConn, fakeKey, fakeSync, Model);
+      });
 
-        sinon.assert.calledWith(fakeKey.key, 'keyName');
+      describe('$set', function() {
+
+        it('sets the value of the key', function() {
+          keyModel.$set('foo');
+
+          sinon.assert.calledWith(fakeKey.set, 'foo');
+        });
+      });
+
+      describe('$add', function() {
+
+        it('sets the value of the key', function() {
+          keyModel.$add('foo');
+
+          sinon.assert.calledWith(fakeKey.add, 'foo');
+        });
+      });
+
+      describe('$remove', function() {
+
+        it('removes a key', function() {
+          keyModel.$remove();
+
+          sinon.assert.calledOnce(fakeKey.remove);
+        });
       });
     });
 
-    describe('$set', function() {
+    describe('users model', function() {
+      var usersModel;
 
-      it('sets the value of the key', function() {
-        model.$set('foo');
+      beforeEach(function() {
+        usersModel = new UsersModel(fakeConn, fakeKey, fakeSync, Model);
+      });
 
-        sinon.assert.calledWith(fakeKey.set, 'foo');
+      describe('$self', function() {
+
+        it('uses the local user\'s key to create a new model', function() {
+
+        });
+      });
+
+      describe('$getUser', function() {
+
+        it('uses the passed id to create a new model', function() {
+
+        });
       });
     });
 
-    describe('$add', function() {
+    describe('query model', function() {
+      var queryModel;
 
-      it('sets the value of the key', function() {
-        model.$add('foo');
-
-        sinon.assert.calledWith(fakeKey.add, 'foo');
-      });
-    });
-
-    describe('$remove', function() {
-
-      it('removes a key', function() {
-        model.$remove();
-
-        sinon.assert.calledOnce(fakeKey.remove);
-      });
-    });
-
-    describe('$on', function() {
-
-      it('add an event listener', function() {
-        var fakeLstner = sinon.stub();
-
-        model.$on('set', fakeLstner);
-
-        sinon.assert.calledWith(fakeKey.on, 'set', fakeLstner);
+      beforeEach(function() {
+        queryModel = new QueryModel(fakeConn, fakeKey, fakeSync, Model);
       });
 
-      it('add an event listener with options object', function() {
-        var fakeOpts = {
-          local: true
-        };
+      describe('$$index', function() {
 
-        var fakeLstner = sinon.stub();
-
-        model.$on('leave', fakeOpts, fakeLstner);
-
-        sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeLstner);
-      });
-    });
-
-    describe('$off', function() {
-
-      it('remove an event listener', function() {
-        var fakeLstner = sinon.stub();
-
-        model.$off('add', fakeLstner);
-
-        sinon.assert.calledWith(fakeKey.off, 'add', fakeLstner);
-      });
-
-      it('remove an event listener with options object', function() {
-        var fakeOpts = {
-          bubble: true
-        };
-
-        var fakeLstner = sinon.stub();
-
-        model.$off('remove', fakeOpts, fakeLstner);
-
-        sinon.assert.calledWith(fakeKey.off, 'remove', fakeOpts, fakeLstner);
-      });
-    });
-
-    describe('$omit', function() {
-
-      it('returns an object sans $-prefixed properties', function() {
-        var result = model.$omit();
-
-        assert.deepEqual(result, {});
+        it('initializes $$index as an empty array', function() {
+          assert.equal(queryModel.$$index.length, 0);
+        });
       });
     });
   });

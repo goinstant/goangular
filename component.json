@@ -28,7 +28,6 @@
     "lib/query_model.js",
     "lib/util/normalize.js",
     "lib/util/args.js",
-    "lib/util/inherit.js",
     "lib/user_factory.js",
     "lib/users_factory.js",
     "lib/users_sync_factory.js",

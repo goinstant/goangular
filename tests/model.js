@@ -80,18 +80,6 @@ describe('GoAngular.Model', function() {
 
           sinon.assert.calledWith(fakeKey.on, 'set', fakeLstner);
         });
-
-        it('add an event listener with options object', function() {
-          var fakeOpts = {
-            local: true
-          };
-
-          var fakeLstner = sinon.stub();
-
-          model.$on('leave', fakeOpts, fakeLstner);
-
-          sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeLstner);
-        });
       });
 
       describe('$off', function() {
@@ -169,15 +157,40 @@ describe('GoAngular.Model', function() {
         usersModel = new UsersModel(fakeConn, fakeKey, fakeSync, Model);
       });
 
-      describe('$self', function() {
+      describe('$on', function() {
+        it('add a key listener', function() {
+          var fakeOpts = {
+            local: true,
+            bubble: true
+          };
 
+          var fakeListener = sinon.stub();
+
+          usersModel.$on('set', fakeListener);
+
+          sinon.assert.calledWith(fakeKey.on, 'set', fakeOpts, fakeListener);
+        });
+
+        it('add an event listener with options object', function() {
+          var fakeOpts = {
+            local: true
+          };
+
+          var fakeLstner = sinon.stub();
+
+          usersModel.$on('leave', fakeOpts, fakeLstner);
+
+          sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeLstner);
+        });
+      });
+
+      describe('$self', function() {
         it('uses the local user\'s key to create a new model', function() {
 
         });
       });
 
       describe('$getUser', function() {
-
         it('uses the passed id to create a new model', function() {
 
         });

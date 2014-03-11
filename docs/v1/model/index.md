@@ -1,11 +1,13 @@
 # Model
 
-A model is an object created and returned by the [$goKey](../key.md) factory.
+A model is an object created and returned by the [$goKey](../key.md) factory,
+[$goUsers](../users.md) factory and [usersModel#$self](./users_model/self.md) method.
 It encapsulates your application's data and provides an API to access, manipulate
 and persist that data.
 
-This page contains an index of the methods available on a model and some
-introductory examples (based on the universal todo app) to help you get started.
+This page contains an index of the three models created by GoAngular, methods
+available on the models, and some introductory examples (based on the universal
+todo app) to help you get started.
 
 ## Table of Contents
 
@@ -24,30 +26,81 @@ introductory examples (based on the universal todo app) to help you get started.
 |:--|
 | Creates a new model instance, with a relative key. |
 
-| [$set(value)](./set.md)|
+| [$omit()](./off.md)|
 |:--|
-| Overwrites the remote value of the key associated with this model.  The value of the model will also be updated. |
-
-| [$add(value)](./add.md)|
-|:--|
-| Adds an item to a key with a generated id.  Ids are generated in chronological order. |
-
-| [$remove()](./remove.md)|
-|:--|
-| Removes the remote key and local object. |
+| Returns a new object, sans properties prefixed with `$`. |
 
 | [$on(eventName, handler)](./on.md)|
 |:--|
-| Adds an event handler. Can be used to monitor both local and remote changes. |
+| Adds an event handler. Can be used to monitor when a model is ready or errors. |
 
 | [$off(eventName, handler)](./off.md)|
 |:--|
 | Removes an event handler. |
 
-| [$omit()](./off.md)|
-|:--|
-| Returns a new object, sans properties prefixed with `$`. |
+### [Key Model](./key_model/index.md)
 
+[$goKey](../key.md) returns a key model, which inherits all of the above methods.
+
+| [$set(value)](./key_model/set.md)|
+|:--|
+| Overwrites the remote value of the key associated with this model.  The value of the model will also be updated. |
+
+| [$add(value)](./key_model/add.md)|
+|:--|
+| Adds an item to a key with a generated id.  Ids are generated in chronological order. |
+
+| [$remove()](./key_model/remove.md)|
+|:--|
+| Removes the remote key and local object. |
+
+| [$on(eventName, opts, handler)](./key_model/on.md)|
+|:--|
+| Adds a key event handler. Can be used to monitor local and remote changes to the model. |
+
+| [$off(eventName, opts handler)](./key_model/off.md)|
+|:--|
+| Removes a key event handler. |
+
+### [UsersModel](./users_model/index.md)
+
+[$goUsers](../users.md) returns a users model, which inherits all of the methods from the key model.
+
+| [$isGuest(userId)](./users_model/is_guest.md)|
+|:--|
+| Checks if the user with the given ID is a GoInstant guest. |
+
+| [$self()](./users_model/self.md)|
+|:--|
+| Returns a promise that resolves to a new model, specific to the local user. |
+
+| [$getUser(userId)](./users_model/get_user.md)|
+|:--|
+| Returns an object with a specific user's data. |
+
+| [$on(eventName, opts, handler)](./users_model/on.md)|
+|:--|
+| Adds a room event handler. Can be used to monitor when a user joins or leaves. |
+
+| [$off(eventName, opts handler)](./users_model/off.md)|
+|:--|
+| Removes a room event handler. |
+
+### [SelfModel](./self_model/index.md)
+
+[$goUsers#$self](./users_model/self.md) returns the self model, which inherits all of the methods from the key model.
+
+| [$isGuest()](./self_model/is_guest.md)|
+|:--|
+| Checks if the local user is a GoInstant guest. |
+
+| [$loginUrl(provider, returnTo)](./self_model/login_url.md)|
+|:--|
+| Generates a login URL for placing into a hyperlink, or redirecting the user. |
+
+| [$logoutUrl(returnTo)](./self_model/logout_url.md)|
+|:--|
+| Generates a logout URL for placing into a hyperlink, or redirecting the user. |
 
 ## Accessing Data
 
@@ -228,7 +281,7 @@ angular.module('yourApp').controller('aCtrl', function($goKey) {
 
 To summarize the most important points:
 
--  Models are returned by two methods: `$goKey()` and `model.$key()`
+-  Models are returned by the methods: `$goKey()`, `keyModel#$key()`, `$goUsers()`, and `selfModel#$self`
 -  They're an extensible adapter for a GoInstant key, and include features for
 retrieving, persisting, and manipulating application data.
 -  Regardless of the value associated with a key, the model is an object.

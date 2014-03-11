@@ -35,6 +35,10 @@
       #killTheGong {
         margin-left: 50px;
       }
+
+      .all-users {
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
@@ -56,8 +60,17 @@
         <div class="col-md-6">
           <div class="jumbotron">
             <h1>GoAngular Todo</h1>
-            <br>
-            <h5>Current User: <input type="text" ng-model="currentUser.displayName"/></h5>
+            <h5>Current User: <input type="text" ng-model="self.displayName"/></h5>
+            <div ng-hide="connection.isGuest === null">
+              <ul ng-show="connection.isGuest">
+                <li ng-repeat="(provider, url) in connection.loginProviders"><a href={{url}}>{{provider}}</a></li>
+              </ul>
+              <a ng-show="!connection.isGuest" href="{{connection.logoutUrl}}">Logout</a>
+            </div>
+            <h3>All Users</h3>
+            <ul class="all-users">
+              <li ng-repeat="user in users">{{user.displayName}} - {{ user.id }}</li>
+            </ul>
           </div>
         </div>
         <!-- <p>{{ text }}</p> -->

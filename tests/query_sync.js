@@ -1,4 +1,5 @@
 /* jshint browser:true */
+/* global require */
 
 describe('GoAngular.querySync', function() {
 

@@ -1,10 +1,10 @@
 /* jshint browser:true */
+/* global require */
 
 describe('GoAngular.goConnection', function() {
 
   'use strict';
 
-  var _ = require('lodash');
   var assert = require('gi-assert');
   var sinon = require('sinon');
 

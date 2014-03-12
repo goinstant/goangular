@@ -4,13 +4,13 @@ describe('GoAngular.goConnection', function() {
 
   'use strict';
 
-  var require = window.require;
-  var assert = window.assert;
-  var sinon = window.sinon;
+  var _ = require('lodash');
+  var assert = require('gi-assert');
+  var sinon = require('sinon');
 
   /* Component Dependencies */
-  var connectionFactory = require('goangular/lib/connection_factory');
-  var Connection = require('goangular/lib/connection');
+  var connectionFactory = require('../lib/connection_factory');
+  var Connection = require('../lib/connection');
 
   var sandbox;
   var connection;

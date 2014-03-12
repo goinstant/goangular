@@ -11,7 +11,6 @@
 
 /** Module Dependencies */
 
-require('goangular');
 
 // Create an AngularJS application module
 var app = angular.module('app', ['goangular']);

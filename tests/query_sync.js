@@ -4,14 +4,14 @@ describe('GoAngular.querySync', function() {
 
   'use strict';
 
-  var require = window.require;
-  var assert = window.assert;
-  var sinon = window.sinon;
-  var _ = window._;
+  var _ = require('lodash');
+  var assert = require('gi-assert');
+  var sinon = require('sinon');
 
-  var querySync = require('goangular/lib/query_sync');
+  var querySync = require('../lib/query_sync');
 
   var sandbox;
+
   beforeEach(function() {
     sandbox = sinon.sandbox.create();
   });

@@ -4,12 +4,12 @@ describe('GoAngular.Model', function() {
 
   'use strict';
 
-  var require = window.require;
-  var assert = window.assert;
-  var sinon = window.sinon;
+  var _ = require('lodash');
+  var assert = require('gi-assert');
+  var sinon = require('sinon');
 
   /* Component Dependencies */
-  var Model = require('goangular/lib/model');
+  var Model = require('../lib/model');
 
   var sandbox;
   var fakeKey;

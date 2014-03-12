@@ -4,13 +4,12 @@ describe('GoAngular.keySync', function() {
 
   'use strict';
 
-  var require = window.require;
-  var assert = window.assert;
-  var sinon = window.sinon;
-  var _ = window._;
+  var _ = require('lodash');
+  var assert = require('gi-assert');
+  var sinon = require('sinon');
 
   /* Component Dependencies */
-  var keySync = require('goangular/lib/key_sync');
+  var keySync = require('../lib/key_sync');
 
   var sandbox;
   var fakeKey;

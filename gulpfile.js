@@ -28,7 +28,7 @@ gulp.task('lint', function() {
     .pipe(gulp.dest(pathTo.build));
 });
 
-gulp.task('develop', ['clean'], function() {
+gulp.task('develop', ['clean', 'lint'], function() {
   var deferred = Q.defer();
 
   gulp.src(pathTo.entry)

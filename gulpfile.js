@@ -39,7 +39,7 @@ gulp.task('build', ['clean', 'develop'], function() {
     .pipe(plugins.browserify())
     .pipe(plugins.rename('goangular.js'))
     .pipe(gulp.dest(pathTo.dist))
-    .pipe(plugins.ngmin())
+    .pipe(plugins.uglify())
     .pipe(plugins.rename('goangular.min.js'))
     .pipe(gulp.dest(pathTo.dist));
 });

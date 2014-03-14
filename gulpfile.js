@@ -1,8 +1,7 @@
-/*jshint node:true*/
+/* jshint node:true */
 
 'use strict';
 
-var Q = require('q');
 var harp = require('harp');
 var gulp = require('gulp');
 var gulpLoadPlugins = require('gulp-load-plugins');
@@ -28,19 +27,14 @@ gulp.task('lint', function() {
     .pipe(gulp.dest(pathTo.build));
 });
 
-gulp.task('develop', ['clean', 'lint'], function() {
-  var deferred = Q.defer();
-
+gulp.task('develop', ['clean'], function() {
   gulp.src(pathTo.entry)
     .pipe(plugins.browserify())
     .pipe(plugins.rename('build.js'))
-    .pipe(gulp.dest(pathTo.build))
-    .on('end', deferred.resolve);
-
-  return deferred.promise;
+    .pipe(gulp.dest(pathTo.build));
 });
 
-gulp.task('build:prod', ['clean', 'develop'], function() {
+gulp.task('build', ['clean', 'develop'], function() {
     gulp.src(pathTo.entry)
     .pipe(plugins.browserify())
     .pipe(plugins.rename('goangular.js'))
@@ -61,7 +55,16 @@ gulp.task('test', function() {
 });
 
 gulp.task('default', ['clean', 'develop'], function() {
-  harp.server(__dirname, { port: process.env.PORT || 5000 });
+  harp.server(__dirname, { port: 5000 });
+
+  var options = {
+    url: 'http://localhost:5000/examples/',
+    app: 'Google Chrome'
+  };
+
+  gulp.src('./examples/index.html')
+    .pipe(plugins.open('', options))
+    .pipe(gulp.dest(pathTo.dist));
 
   var livereload = plugins.livereload();
   gulp.watch(pathTo.watch).on('change', function(file) {
@@ -69,6 +72,7 @@ gulp.task('default', ['clean', 'develop'], function() {
       livereload.changed(file.path);
     });
   });
+
 });
 
 function throwErr(err) {

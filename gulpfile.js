@@ -10,6 +10,7 @@ var plugins = gulpLoadPlugins();
 var pathTo = {
   clean: ['build/', 'dist/'],
   watch: ['lib/**.js', 'index.js'],
+  watchBuild: 'build/build.js',
   tests: ['tests/*.js'],
   entry: 'index.js',
   build: 'build/',
@@ -28,6 +29,7 @@ gulp.task('lint', function() {
 });
 
 gulp.task('develop', ['clean'], function() {
+  console.log('ding')
   gulp.src(pathTo.entry)
     .pipe(plugins.browserify())
     .pipe(plugins.rename('build.js'))
@@ -54,6 +56,15 @@ gulp.task('test', function() {
     .on('error', throwErr);
 });
 
+gulp.task('tdd', function() {
+  return gulp.src(pathTo.tests)
+    .pipe(plugins.karma({
+      configFile: 'karma.conf.js',
+      action: 'start'
+    }))
+    .on('error', throwErr);
+});
+
 gulp.task('default', ['clean', 'develop'], function() {
   harp.server(__dirname, { port: 5000 });
 
@@ -66,13 +77,14 @@ gulp.task('default', ['clean', 'develop'], function() {
     .pipe(plugins.open('', options))
     .pipe(gulp.dest(pathTo.dist));
 
-  var livereload = plugins.livereload();
-  gulp.watch(pathTo.watch).on('change', function(file) {
-    gulp.start('develop', function() {
-      livereload.changed(file.path);
-    });
+  gulp.watch(pathTo.watch).on('change', function() {
+    gulp.start('develop');
   });
 
+  var livereload = plugins.livereload();
+  gulp.watch(pathTo.watchBuild).on('change', function(file) {
+    livereload.changed(file.path);
+  });
 });
 
 function throwErr(err) {

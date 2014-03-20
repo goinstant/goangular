@@ -12,6 +12,8 @@
 
 var connectionFactory = require('./lib/connection_factory');
 
+var channel = require('./lib/channel');
+
 var keySync = require('./lib/key_sync');
 var keyFactory = require('./lib/key_factory');
 
@@ -25,6 +27,8 @@ var goangular = angular.module('goangular', []);
 /** Services **/
 
 goangular.provider('$goConnection', connectionFactory);
+
+goangular.factory('$goChannel', ['$goConnection', channel.factory ]);
 
 goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
 goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);

@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "emitter-component": "~1.1.1",
-    "lodash": "^2.4.1"
+    "lodash": "^2.4.1",
+    "args-js": "~0.10.4"
   }
 }

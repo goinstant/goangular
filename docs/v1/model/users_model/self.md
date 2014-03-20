@@ -1,7 +1,7 @@
 # $self
 
 ```
-Stability: 2 - Experimental
+Stability: 1 - Experimental
 ```
 
 The `$self` method creates a self model of the local user.

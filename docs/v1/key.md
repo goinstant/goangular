@@ -27,7 +27,7 @@ in your GoInstant applications data structure.  It returns a [GoAngular Key Mode
 
 ## Returns
 
-| [GoAngular Model](./model/key_model/index.md) |
+| [GoAngular Key Model](./model/key_model/index.md) |
 | :--|
 | Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
 | A new model, with methods for retrieving, manipulating and persisting data. |

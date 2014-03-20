@@ -26,6 +26,11 @@ angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
 
 - ###### **model.$sync()**
 
+| [GoAngular Key Model](./model/key_model/index.md) |
+| :--|
+| Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+| The already existing model that had `$sync` called on it. |
+
 ## Example
 
 ```js

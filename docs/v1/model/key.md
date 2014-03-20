@@ -4,7 +4,7 @@
 Stability: 3 - Stable
 ```
 
-The `$key` method creates a new GoAngular model for a child property, based on the
+The `$key` method creates a new GoAngular [key model](./key_model/index.md) for a child property, based on the
 provided key name.
 
 ## Methods
@@ -20,7 +20,7 @@ provided key name.
 
 ## Returns
 
-| [GoAngular Model](./index.md) |
+| [GoAngular Key Model](./key_model/index.md) |
 | :--|
 | Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
 | A new model, with methods for retrieving, manipulating and persisting data. |

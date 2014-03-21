@@ -165,6 +165,28 @@ describe('GoAngular.keySync', function() {
           expect: _.merge(_.cloneDeep(model), { 0: 'foo', 1: 'bar' })
         },
         {
+          desc: 'replaces the models value on set',
+          model: { foo: 'bar' },
+          value: { bar: 'foo' },
+          context: {
+            command: 'SET',
+            key: '/currentKey',
+            currentKey: '/currentKey'
+          },
+          expect: { bar: 'foo' }
+        },
+        {
+          desc: 'clears dead branches on set',
+          model: { foo: { bar: 'foo', ding: 'dong' } },
+          value: { bar: { bar: 'foo' } },
+          context: {
+            command: 'SET',
+            key: '/currentKey',
+            currentKey: '/currentKey'
+          },
+          expect: { bar: { bar: 'foo' } }
+        },
+        {
           desc: 'will add a child primitive',
           value: 'bar',
           context: {

@@ -39,17 +39,21 @@
       .all-users {
         font-size: 13px;
       }
+
+      img {
+        width: 50px;
+        height: 50px;
+      }
     </style>
   </head>
   <body>
     <div class="container" ng-controller="sweetController">
-      <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
-        <div class="col-md-6">
-          <h5>description: {{description}}</h5>
-          <div class="input-group">
-            <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control">
-            <span class="input-group-btn">
-              <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
+      <div class="col-md-6">
+        <h5 ng-show="last">user: {{last.user}} - description: {{last.description}}</h5>
+        <div class="input-group">
+          <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control" />
+          <span class="input-group-btn">
+            <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
             </span>
           </div><!-- /input-group -->
           <br>
@@ -60,12 +64,13 @@
         <div class="col-md-6">
           <div class="jumbotron">
             <h1>GoAngular Todo</h1>
-            <h5>Current User: <input type="text" ng-model="self.displayName"/></h5>
-            <div ng-hide="connection.isGuest === null">
-              <ul ng-show="connection.isGuest">
-                <li ng-repeat="(provider, url) in connection.loginProviders"><a href={{url}}>{{provider}}</a></li>
+            <h5>Current User: <input type="text" ng-model="users.$local.displayName"/></h5>
+            <img ng-show="users.$local.avatarUrl" ng-src="{{users.$local.avatarUrl}}">
+          <div ng-hide="conn.isGuest === null">
+              <ul ng-show="conn.isGuest">
+                <li ng-repeat="(provider, url) in conn.loginProviders"><a href={{url}}>{{provider}}</a></li>
               </ul>
-              <a ng-show="!connection.isGuest" href="{{connection.logoutUrl}}">Logout</a>
+              <a ng-show="!conn.isGuest" href="{{conn.logoutUrl}}">Logout</a>
             </div>
             <h3>All Users</h3>
             <ul class="all-users">

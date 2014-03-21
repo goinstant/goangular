@@ -1,5 +1,5 @@
 /* jshint browser: true */
-/* global require, angular, CONFIG */
+/* global require, angular, CONFIG, console */
 
 /**
  * @fileOverview
@@ -14,47 +14,23 @@ var app = angular.module('app', ['goangular']);
 
 app.config(function($goConnectionProvider) {
   $goConnectionProvider.$set(CONFIG.connectUrl);
+  $goConnectionProvider.$loginUrl(['GitHub', 'Twitter']);
+  $goConnectionProvider.$logoutUrl();
 });
 
 app.controller('sweetController', function($scope, $goKey, $goUsers, $goConnection) {
-  $scope.connection = $goConnection;
-  window.conn = $scope.connection;
-  $scope.connection.$loginUrl(['GitHub', 'Twitter']);
-  $scope.connection.$logoutUrl();
+  window.scope = $scope; // expose scope for debugging
 
-  console.log($scope.connection.isGuest);
-  $scope.connection.$ready().then(function() {
-    console.log($scope.connection.isGuest);
+  // $goConnection
+  $scope.conn = $goConnection;
+
+  console.log($scope.conn.isGuest, 'isGuest'); // null
+  $scope.conn.$ready().then(function() {
+    console.log($scope.conn.isGuest, 'isGuest'); // boolean
   });
 
-  $scope.users = $goUsers();
-  window.users = $scope.users;
-
-  /*
-  $scope.users.$self(true).then(function(m) {
-    console.log(m);
-  });
-  */
-
- /*
-  $scope.users.$self(false).then(function(m) {
-    m.$key('displayName').$set('123');
-    $scope.self = m;
-    $scope.self.$sync();
-  });
-  */
-
-  //$scope.self = $goUsers().$self();
-
+  // $goKey
   $scope.todos = $goKey('todos').$sync();
-  window.todos = $scope.todos;
-
-  /*
-  $scope.users.$self().then(function(model) {
-    $scope.localUser = model.$sync();
-    window.localUser = $scope.localUser;
-  });
-  */
 
   $scope.addTodo = function() {
     var desc = $scope.newTodo;
@@ -76,22 +52,32 @@ app.controller('sweetController', function($scope, $goKey, $goUsers, $goConnecti
     local: true
   };
 
-  $scope.users.$on('join', function(user) {
-    console.log('user joined', user);
-  });
-
-  $scope.users.$on('leave', function(user) {
-    console.log('user left', user);
-  });
-
-  $scope.todos.$on('add', opts, function(value) {
-    $scope.description = value.description;
+  $scope.todos.$on('add', opts, function(value, context) {
+    $scope.last = {
+      description: value.description,
+      user: $scope.users[context.userId].displayName
+    };
   });
 
   $scope.remove = function(key) {
     console.log('key remove is called on', key);
     $scope.todos.$key(key).$remove();
   };
+
+  // $goUsers
+  $scope.users = $goUsers().$sync();
+
+  $scope.users.$self(false).then(function(model) {
+    $scope.local = model.$sync();
+  });
+
+  $scope.users.$on('join', function(user) {
+    console.log('user joined', user.id, user.displayName);
+  });
+
+  $scope.users.$on('leave', function(user) {
+    console.log('user left', user.id, user.displayName);
+  });
 });
 
 app.directive('enter', function() {

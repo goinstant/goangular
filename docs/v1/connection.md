@@ -191,10 +191,13 @@ angular.module('yourApp', ['goangular'])
 Generates login URLs for placing into a hyperlink, or redirecting the user.
 The generated loginUrl(s) are available on the `$goConnection#loginProviders`
 property. Each provider login generated will be available at
-`loginProviders#providerName`.
+`loginProviders#providerName` as an array. Each provider in the array will have
+a name and url property for creating appropriate links.
 
-The property `$goConnection#isGuest` will be `null` before a connection is
-established, `true` if connected as a GoInstant [guest user](../security_and_auth/guides/users_and_authentication.html#what-about-unauthenticated-users?)
+We can determine if the currently connected user is a guest user or not based on
+the value of `goConnection#$isGuest`. The property `$goConnection#isGuest` will
+be `null` before a connection is established, `true` if connected as a GoInstant
+[guest user](../security_and_auth/guides/users_and_authentication.html#what-about-unauthenticated-users?)
 , or `false` if connected as an authenticated user.
 
 See the [GoInstant Authentication API](../auth_api/index.html) for more information.
@@ -219,13 +222,15 @@ See the [GoInstant Authentication API](../auth_api/index.html) for more informat
 
 ### Example
 
-Create a Google login link:
+Generate login links with separate calls to `$loginUrl`:
 
 ```js
 angular.module('yourApp', ['goangular'])
   .config(function($goConnectionProvider) {
     $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
-    $goConnectionProvider.$loginUrl('google');
+    $goConnectionProvider.$loginUrl(null);
+    $goConnectionProvider.$loginUrl('Google');
+    $goConnectionProvider.$loginUrl('Twitter');
   })
   .controller('authCtrl', function($goConnection) {
     $scope.conn = $goConnection;
@@ -234,11 +239,13 @@ angular.module('yourApp', ['goangular'])
 
 ```html
 <div ng-controller="authCtrl">
-  <a ng-show=conn.isGuest href="{{conn.loginProviders.google}}">Google</a>
+  <ul ng-show=conn.isGuest>
+    <li ng-repeat="provider in conn.loginProviders"><a href="{{provider.url}}">{{provider.name}}</a></li>
+  </ul>
 </div>
 ```
 
-Create GitHub and Twitter login links:
+Generate GitHub and Twitter login links:
 
 ```js
 angular.module('yourApp', ['goangular'])
@@ -254,7 +261,7 @@ angular.module('yourApp', ['goangular'])
 ```html
 <div ng-controller="authCtrl">
   <ul ng-show=conn.isGuest>
-    <li ng-repeat="(provider, url) in conn.loginProviders"><a href="{{url}}">{{provider}}</a></li>
+    <li ng-repeat="provider in conn.loginProviders"><a href="{{provider.url}}">{{provider.name}}</a></li>
   </ul>
 </div>
 ```

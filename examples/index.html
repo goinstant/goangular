@@ -68,7 +68,7 @@
             <img ng-show="users.$local.avatarUrl" ng-src="{{users.$local.avatarUrl}}">
           <div ng-hide="conn.isGuest === null">
               <ul ng-show="conn.isGuest">
-                <li ng-repeat="(provider, url) in conn.loginProviders"><a href={{url}}>{{provider}}</a></li>
+                <li ng-repeat="provider in conn.loginProviders"><a href={{provider.url}}>{{provider.name}}</a></li>
               </ul>
               <a ng-show="!conn.isGuest" href="{{conn.logoutUrl}}">Logout</a>
             </div>

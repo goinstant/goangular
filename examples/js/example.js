@@ -14,7 +14,8 @@ var app = angular.module('app', ['goangular']);
 
 app.config(function($goConnectionProvider) {
   $goConnectionProvider.$set(CONFIG.connectUrl);
-  $goConnectionProvider.$loginUrl(['GitHub', 'Twitter']);
+  $goConnectionProvider.$loginUrl(null);
+  $goConnectionProvider.$loginUrl(['GitHub', 'Twitter', 'Salesforce']);
   $goConnectionProvider.$logoutUrl();
 });
 

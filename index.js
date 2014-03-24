@@ -21,6 +21,8 @@ var queryFactory = require('./lib/query_factory');
 var usersSyncFactory = require('./lib/users_sync_factory');
 var usersFactory = require('./lib/users_factory');
 
+var keyFilter = require('./lib/key_filter');
+
 /** Module Registration */
 
 var goangular = angular.module('goangular', []);
@@ -48,3 +50,5 @@ goangular.factory('$goUsers', [
   '$q',
   usersFactory
 ]);
+
+goangular.filter('keyFilter', keyFilter);

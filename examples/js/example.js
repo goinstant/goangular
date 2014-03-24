@@ -19,7 +19,7 @@ app.config(function($goConnectionProvider) {
   $goConnectionProvider.$logoutUrl();
 });
 
-app.controller('sweetController', function($scope, $goKey, $goUsers, $goConnection) {
+app.controller('sweetController', function($scope, $goQuery, $goUsers, $goConnection) {
   window.scope = $scope; // expose scope for debugging
 
   // $goConnection
@@ -31,7 +31,7 @@ app.controller('sweetController', function($scope, $goKey, $goUsers, $goConnecti
   });
 
   // $goKey
-  $scope.todos = $goKey('todos').$sync();
+  $scope.todos = $goQuery('todos', { sort: { '$name': 'desc'}}).$sync();
 
   $scope.addTodo = function() {
     var desc = $scope.newTodo;

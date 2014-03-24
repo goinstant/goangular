@@ -58,7 +58,10 @@
           </div><!-- /input-group -->
           <br>
           <ul class="list-group">
-            <li class="list-group-item" ng-repeat="(key, todo) in todos">{{todo.description}}&nbsp;<button ng-click="remove(key)" class="pull-right btn btn-xs btn-danger">x</button></li>
+            <li class="list-group-item" ng-repeat="todo in todos | keyFilter | limitTo:10">
+              {{todo.description}}
+              <button ng-click="remove(todo.$name)" class="pull-right btn btn-xs btn-danger">x</button>
+            </li>
           </ul>
         </div><!-- /.col-lg-6 -->
         <div class="col-md-6">

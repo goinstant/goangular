@@ -5,7 +5,7 @@ Stability: 3 - Stable
 ```
 
 The `$goKey` method has only a single required parameter, a `keyName`, which is a string, referencing a specific location
-in your GoInstant applications data structure.  It returns a [GoAngular Model](./model/index.md).
+in your GoInstant applications data structure.  It returns a [GoAngular Key Model](./model/key_model/index.md).
 
 ## Methods
 
@@ -27,7 +27,7 @@ in your GoInstant applications data structure.  It returns a [GoAngular Model](.
 
 ## Returns
 
-| [GoAngular Model](./model/index.md) |
+| [GoAngular Key Model](./model/key_model/index.md) |
 | :--|
 | Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
 | A new model, with methods for retrieving, manipulating and persisting data. |

@@ -1,4 +1,5 @@
 /* jshint browser:true */
+/* global require */
 
 describe('GoAngular.keySync', function() {
 
@@ -9,7 +10,7 @@ describe('GoAngular.keySync', function() {
   var sinon = require('sinon');
 
   /* Component Dependencies */
-  var keySync = require('../lib/key_sync');
+  var keySync = require('../lib/key_sync_factory');
 
   var sandbox;
   var fakeKey;

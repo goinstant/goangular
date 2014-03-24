@@ -35,17 +35,25 @@
       #killTheGong {
         margin-left: 50px;
       }
+
+      .all-users {
+        font-size: 13px;
+      }
+
+      img {
+        width: 50px;
+        height: 50px;
+      }
     </style>
   </head>
   <body>
     <div class="container" ng-controller="sweetController">
-      <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
-        <div class="col-md-6">
-          <h5>description: {{description}}</h5>
-          <div class="input-group">
-            <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control">
-            <span class="input-group-btn">
-              <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
+      <div class="col-md-6">
+        <h5 ng-show="last">user: {{last.user}} - description: {{last.description}}</h5>
+        <div class="input-group">
+          <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control" />
+          <span class="input-group-btn">
+            <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
             </span>
           </div><!-- /input-group -->
           <br>
@@ -56,8 +64,18 @@
         <div class="col-md-6">
           <div class="jumbotron">
             <h1>GoAngular Todo</h1>
-            <br>
-            <h5>Current User: <input type="text" ng-model="currentUser.displayName"/></h5>
+            <h5>Current User: <input type="text" ng-model="users.$local.displayName"/></h5>
+            <img ng-show="users.$local.avatarUrl" ng-src="{{users.$local.avatarUrl}}">
+          <div ng-hide="conn.isGuest === null">
+              <ul ng-show="conn.isGuest">
+                <li ng-repeat="provider in conn.loginProviders"><a href={{provider.url}}>{{provider.name}}</a></li>
+              </ul>
+              <a ng-show="!conn.isGuest" href="{{conn.logoutUrl}}">Logout</a>
+            </div>
+            <h3>All Users</h3>
+            <ul class="all-users">
+              <li ng-repeat="user in users">{{user.displayName}} - {{ user.id }}</li>
+            </ul>
           </div>
         </div>
         <!-- <p>{{ text }}</p> -->

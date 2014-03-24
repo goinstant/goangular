@@ -4,7 +4,7 @@
 Stability: 1 - Experimental
 ```
 
-The `$goQuery` method enables you to filter, sort and limit the children of a key, using a MongoDb inspired query syntax. It returns a [GoAngular Model](./model/index.md).
+The `$goQuery` method enables you to filter, sort and limit the children of a key, using a MongoDb inspired query syntax. It returns a [GoAngular Key Model](./model/key_model/index.md).
 
 ## Methods
 
@@ -40,7 +40,7 @@ The `$goQuery` method enables you to filter, sort and limit the children of a ke
 
 ## Returns
 
-| [GoAngular Model](./model/index.md) |
+| [GoAngular Key Model](./model/key_model/index.md) |
 | :--|
 | Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
 | A new model, with methods for retrieving, manipulating and persisting data. |

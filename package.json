@@ -43,7 +43,8 @@
     "harp": "~0.11.2",
     "jshint-stylish": "~0.1.5",
     "q": "^1.0.1",
-    "gulp-uglify": "~0.2.1"
+    "gulp-uglify": "~0.2.1",
+    "gulp-conventional-changelog": "~0.1.2"
   },
   "goinstant": {
     "namespace": "integrations"

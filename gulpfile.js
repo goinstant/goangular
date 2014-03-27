@@ -4,6 +4,7 @@
 
 var harp = require('harp');
 var gulp = require('gulp');
+var gulpConventionalChangelog = require('gulp-conventional-changelog');
 var gulpLoadPlugins = require('gulp-load-plugins');
 var plugins = gulpLoadPlugins();
 
@@ -85,6 +86,12 @@ gulp.task('default', ['clean', 'develop'], function() {
   gulp.watch(pathTo.watchBuild).on('change', function(file) {
     livereload.changed(file.path);
   });
+});
+
+gulp.task('changelog', function(){
+  return gulp.src(['package.json', 'CHANGELOG.md'])
+    .pipe(gulpConventionalChangelog())
+    .pipe(gulp.dest('.')); // will output one file only
 });
 
 function throwErr(err) {

@@ -7,7 +7,9 @@ provider and the [$goUsers](../users.md) service.
 
 The full source for this example can be found [here](https://github.com/colinmacdonald/goangular-auth-example).
 
-1. First things first, we include all of our dependencies.
+### 1. Install
+
+First things first, we include all of our dependencies.
 
 ```html
 <head>
@@ -38,7 +40,9 @@ The full source for this example can be found [here](https://github.com/colinmac
 </head>
 ```
 
-2. Next, we define our app and main controller in the view. We also begin
+### 2. Set up view
+
+Next, we define our app and main controller in the view. We also begin
 setting up the navigation bar, which will contain our view menu and login links.
 
 ```html
@@ -51,7 +55,9 @@ setting up the navigation bar, which will contain our view menu and login links.
 </body>
 ```
 
-3. First we create the Angular app with our `ngRoute` and `goangular`
+### 3. Configure GoAngular and set up routes
+
+First we create the Angular app with our `ngRoute` and `goangular`
 dependencies, then we configure it with our GoInstant connectUrl. We also set
 our [$loginUrl](../connection.html#$loginUrl) (`GitHub`, `Twitter`, and
 `Facebook`) and [$logoutUrl](../connection.html#$logoutUrl), which will generate
@@ -113,7 +119,9 @@ app.controller('restrictedCtrl', function($scope) {
 });
 ```
 
-4. The following service is used to tie a user to an access level. In this
+### 4. Permissions service
+
+The following service is used to tie a user to an access level. In this
 example, an 'authenticated' user is granted access to the `/profile` route. This
  service simply checks if the user `isGuest` and compares those permissions to
 the `accessLevel` they are trying to access. If there is a match, the service
@@ -146,7 +154,9 @@ app.factory('permissions', function ($goConnection) {
 });
 ```
 
-5. Lets start using the routes we configured with the `permissions` service to
+### 5. Main controller
+
+Lets start using the routes we configured with the `permissions` service to
 grant (or deny) a user access to a view.
 
 Here we put a few models on `$scope` for use in the view. `conn` will
@@ -160,7 +170,7 @@ users model to store and [$sync](../model/sync.md) the local user's model on
 
 Where we need to wait for the user to connect before determining if they can or
  cannot access a particular view, we perform that logic once the connection is
-[$ready](../connection.html#$ready.md).
+[$ready](../connection.html#$ready).
 
 A listener is registered to `$routeChangeStart`, which will trigger **before**
 the view changes. This is where we perform our permissions check by calling
@@ -191,12 +201,14 @@ app.controller('mainCtrl',
 );
 ```
 
-6. Before we get back to the view, lets make showing and hiding elements a bit
+### 6. Access directive
+
+Before we get back to the view, lets make showing and hiding elements a bit
 easier with a directive. Similar to how we restrict access to routes using the
 `permissions` service, we can also `show()` or `hide` elements based on the
 local user's permissions. Where our permissions don't change after being
 connected, we only need call the `authenticate` function once the connection
-is [$ready](../connection.html#$ready.md).
+is [$ready](../connection.html#$ready).
 
 ```js
 app.directive('access', function($goConnection, permissions) {
@@ -222,7 +234,9 @@ app.directive('access', function($goConnection, permissions) {
 });
 ```
 
-7. Time to get back to the view and put our new `access` directive to good use.
+### 7. Set up the menu and login buttons
+
+Time to get back to the view and put our new `access` directive to good use.
 
 The first `<ul>` simply creates our links in the navbar for moving between
 views. Note we are using our `access` directive to hide the link to the
@@ -262,7 +276,9 @@ model using the `$local` property to display their name.
     </div>
 ```
 
-8. We defined our routes in **Step 3**, now lets add the corresponding views.
+### 8. Add the views
+
+We defined our routes in **Step 3**, now lets add the corresponding views.
 
 ```html
     <div class="container">

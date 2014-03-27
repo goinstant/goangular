@@ -13,8 +13,8 @@ connection!
 1. [Code Example](#code-example)
 2. [$goConnection#$connect](#$goconnection#$connect)
 3. [$goConnection#$set](#$goconnection#$set)
-4.
-5.
+4. [$goConnection#$loginUrl](#$goconnection#$loginUrl)
+5. [$goConnection#$logoutUrl](#$goconnection#$logoutUrl)
 6. [$goConnection#$ready](#$goconnection#$ready)
 
 ## Code Example

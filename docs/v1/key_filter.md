@@ -5,7 +5,7 @@ Stability: 3 - Stable
 ```
 
 The `keyFilter` angular [filter](http://docs.angularjs.org/guide/filter) is used
-to convert a collection of models to an [array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+to convert the data in a model to an [array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
 of [objects](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object).
 The structure of these objects depend on the type of data it contains.
 

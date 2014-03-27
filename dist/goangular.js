@@ -13,11 +13,16 @@
 
 var connectionFactory = require('./lib/connection_factory');
 
-var keySync = require('./lib/key_sync');
+var keySyncFactory = require('./lib/key_sync_factory');
 var keyFactory = require('./lib/key_factory');
 
 var querySync = require('./lib/query_sync');
 var queryFactory = require('./lib/query_factory');
+
+var usersSyncFactory = require('./lib/users_sync_factory');
+var usersFactory = require('./lib/users_factory');
+
+var keyFilter = require('./lib/key_filter');
 
 /** Module Registration */
 
@@ -27,7 +32,7 @@ var goangular = angular.module('goangular', []);
 
 goangular.provider('$goConnection', connectionFactory);
 
-goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
+goangular.factory('$goKeySync', [ '$parse', '$timeout', keySyncFactory ]);
 goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
 
 goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
@@ -38,7 +43,18 @@ goangular.factory('$goQuery', [
   queryFactory
 ]);
 
-},{"./lib/connection_factory":3,"./lib/key_factory":4,"./lib/key_sync":5,"./lib/query_factory":7,"./lib/query_sync":8}],2:[function(require,module,exports){
+goangular.factory('$goUsersSync', [ '$parse', '$timeout', usersSyncFactory ]);
+goangular.factory('$goUsers', [
+  '$goUsersSync',
+  '$goKey',
+  '$goConnection',
+  '$q',
+  usersFactory
+]);
+
+goangular.filter('keyFilter', keyFilter);
+
+},{"./lib/connection_factory":3,"./lib/key_factory":4,"./lib/key_filter":5,"./lib/key_sync_factory":8,"./lib/query_factory":10,"./lib/query_sync":11,"./lib/users_factory":12,"./lib/users_sync_factory":15}],2:[function(require,module,exports){
 /* jshint browser:true */
 /* global require, module, goinstant */
 
@@ -77,7 +93,10 @@ function Connection() {
     $$connection: null,
     $$connecting: false,
     $$configured: false,
-    $$rooms: {}
+    $$rooms: {},
+    isGuest: null,
+    loginProviders: [],
+    logoutUrl: null
   });
 }
 
@@ -177,7 +196,39 @@ Connection.prototype.$$connect = function() {
   var user  = this.$$opts.user || {};
 
   this.$$connecting = true;
-  this.$$connection = this.$$conn.connect(user || {}, function() {});
+
+  var self = this;
+  this.$$connection = this.$$conn.connect(user || {}, function() {
+    self.isGuest = self.$$conn.isGuest();
+  });
+};
+
+Connection.prototype.$loginUrl = function(providers, returnTo) {
+  var self = this;
+
+  if (_.isArray(providers)) {
+    _.each(providers, function(provider) {
+      var provObj = {
+        name: provider,
+        url: self.$$conn.loginUrl(format(provider).toLowerCase(), returnTo)
+      };
+
+      self.loginProviders.push(provObj);
+    });
+
+  } else {
+    var provider = _.isString(providers) ? providers.toLowerCase() : null;
+    var provObj = {
+      name: providers || 'All',
+      url: this.$$conn.loginUrl(format(provider), returnTo)
+    };
+
+    this.loginProviders.push(provObj);
+  }
+};
+
+Connection.prototype.$logoutUrl = function(returnTo) {
+  this.logoutUrl = this.$$conn.logoutUrl(returnTo);
 };
 
 /**
@@ -195,7 +246,21 @@ Connection.prototype.$ready = function() {
   return this.$$connection;
 };
 
-},{"lodash":12}],3:[function(require,module,exports){
+function format(provider) {
+  if (!provider) {
+    return null;
+  }
+
+  provider = provider.toLowerCase();
+
+  if (provider === 'salesforce') {
+    return 'forcedotcom';
+  }
+
+  return provider;
+}
+
+},{"lodash":20}],3:[function(require,module,exports){
 /* jshint browser:true */
 /* global require, module */
 
@@ -224,15 +289,17 @@ module.exports = function connectionFactory() {
 /**
  * @fileOverview
  *
- * This file contains the Sync factory, responsible for creating and returning
- * instances of Sync.
+ * This file contains the Key factory, responsible for validating options and
+ * creating a new instance of the KeyModel.
  */
 
 'use strict';
 
-var Model = require('./model');
-var Args = require('./util/args');
+var KeyModel = require('./key_model');
+var Args = require('args-js');
 var _ = require('lodash');
+
+module.exports = keyFactory;
 
 /**
  * keyFactory
@@ -242,7 +309,7 @@ var _ = require('lodash');
  * @param {Object} $conn - GoInstant connection service
  * @returns {Function} option validation & instance creation
  */
-module.exports = function keyFactory($keySync, $conn) {
+function keyFactory($keySync, $conn) {
 
   /**
    * @public
@@ -251,17 +318,228 @@ module.exports = function keyFactory($keySync, $conn) {
   return function $key() {
     var a = new Args([
       { key: Args.OBJECT | Args.STRING | Args.Required },
-      { room: Args.STRING | Args.Optional },
+      { room: Args.STRING | Args.Optional }
     ], arguments);
 
-    var key = _.isObject(a.key) ? a.key : $conn.$key(a.key, a.room);
+    var key = (_.isObject(a.key)) ? a.key : $conn.$key(a.key, a.room);
     var sync = $keySync(key);
 
-    return new Model($conn, key, sync, $key);
+    return new KeyModel($conn, key, sync, $key);
+  };
+}
+
+},{"./key_model":6,"args-js":18,"lodash":20}],5:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the key filter, used to convert a collection of models
+ * into an array of models.
+ */
+
+'use strict';
+
+var _ = require('lodash');
+
+/**
+ * Converts the model from an object to an array. Orders the result of a goQuery
+ * given the $$index on the model.
+ * @public
+ * @returns {function} The goangular filter function
+ */
+module.exports = function keyFilter() {
+  var mPrimToObj = memoize(primToObj);
+
+  return function(model, enabled) {
+    enabled = (_.isBoolean(enabled)) ? enabled : true; // Default: true
+
+    if (!model || !_.isObject(model) || _.isArray(model) || !enabled) {
+      return model;
+    }
+
+    var output = [];
+    var data = null;
+
+    if (!_.has(model, '$$index')) {
+      data = _.keys(model);
+
+    } else if (_.has(model, '$omit') && model.$$index.length === 0) {
+      data = _.keys(model.$omit());
+
+    } else {
+      data = model.$$index;
+    }
+
+    _.each(data, function(key) {
+      var value = model[key];
+
+      if (!_.isObject(value)) {
+        value = mPrimToObj(key, value);
+
+      } else {
+        value.$name = key;
+      }
+
+      output.push(value);
+    });
+
+    return output;
   };
 };
 
-},{"./model":6,"./util/args":9,"lodash":12}],5:[function(require,module,exports){
+/**
+ * Creates a new model for primitives to hold the key $name and $value.
+ * @private
+ * @returns {object} Model for primitives
+ */
+function primToObj(name, value) {
+  return {
+    $value: value,
+    $name: name
+  };
+}
+
+/**
+ * Memoizes a function and uses both the key name and value to cache results.
+ * @private
+ * @returns {function} A memoize-wrapped function.
+ */
+function memoize(func) {
+  var memoized = function() {
+    var cache = memoized.cache;
+
+    var name = arguments[0];
+    var value = arguments[1];
+
+    cache[name] = cache[name] || {};
+
+    if (!_.isUndefined(cache[name][value])) {
+      return cache[name][value];
+    }
+
+    cache[name][value] = func.call(null, name, value);
+
+    return cache[name][value];
+  };
+
+  memoized.cache = {};
+
+  return memoized;
+}
+
+},{"lodash":20}],6:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the KeyModel class, an Angular friendly key wrapper
+ */
+
+'use strict';
+
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var Model = require('./model');
+
+module.exports = KeyModel;
+
+var KEY_EVENTS = ['set', 'add', 'remove'];
+
+/**
+ * @public
+ * @constructor
+ * @class
+ * @extends Model
+ */
+function KeyModel() {
+  Model.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$set',
+    '$add',
+    '$remove',
+    '$on',
+    '$off'
+  ]);
+}
+
+inheritPrototype(KeyModel, Model);
+
+/**
+ * Give the current key a new value
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$set = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.set(value, opts);
+  });
+};
+
+/**
+ * Add a generated id with a
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$add = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.add(value, opts);
+  });
+};
+
+/**
+ * Remove this key
+ * @public
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$remove = function(opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.remove(opts);
+  });
+};
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ * @extends Model#$on
+ */
+KeyModel.prototype.$on = function(eventName, opts, listener) {
+  if (!_.contains(KEY_EVENTS, eventName)) {
+    return Model.prototype.$on.call(this, eventName, opts || listener);
+  }
+
+  this.$$key.on(eventName, opts, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ * @extends Model#$off
+ */
+KeyModel.prototype.$off = function(eventName, opts, listener) {
+  if (!_.contains(KEY_EVENTS, eventName)) {
+    return Model.prototype.$on.call(this, eventName, opts || listener);
+  }
+
+  this.$$key.off(eventName, opts, listener);
+};
+
+},{"./model":9,"./util/inherit":16,"lodash":20}],7:[function(require,module,exports){
 /* jshint browser:true */
 /* global require, module */
 
@@ -274,20 +552,10 @@ module.exports = function keyFactory($keySync, $conn) {
 
 'use strict';
 
-/* @todo slowly phase out external dependencies */
 var _ = require('lodash');
 var normalize = require('./util/normalize');
 
-module.exports = function keySync($parse, $timeout) {
-
-  /**
-   * @public
-   * @param {Object} key - GoInstant key
-   */
-  return function(key) {
-    return new KeySync($parse, $timeout, key);
-  };
-};
+module.exports = KeySync;
 
 /**
  * The KeySync class is responsible for synchronizing the state of a local model
@@ -321,6 +589,7 @@ function KeySync($parse, $timeout, key) {
  */
 KeySync.prototype.$initialize = function(model) {
   var self = this;
+
   this.$$model = model;
   this.$$model.$$key.get(function(err, value) {
     if (err) {
@@ -403,10 +672,6 @@ KeySync.prototype.$$handleUpdate = function(value, context) {
     for (var i = 0; i < parentIndex; i++) {
       target = target[sections[i]];
 
-      if (target === undefined) {
-        return this._resync();
-      }
-
       ptr.push(target);
     }
 
@@ -480,10 +745,6 @@ KeySync.prototype.$$handleRemove = function(value, context) {
   for (var i = 0; i < parentIndex; i++) {
     target = target[sections[i]];
 
-    if (target === undefined) {
-      return this._resync();
-    }
-
     ptr.push(target);
   }
 
@@ -504,14 +765,47 @@ KeySync.prototype.$$handleRemove = function(value, context) {
   });
 };
 
-},{"./util/normalize":10,"lodash":12}],6:[function(require,module,exports){
+},{"./util/normalize":17,"lodash":20}],8:[function(require,module,exports){
 /* jshint browser:true */
 /* global require, module */
 
 /**
  * @fileOverview
  *
- * This file contains the Model class, an Angular friendly key wrapper
+ * This file contains the keySync factory, used to create a new instance of
+ * KeySync
+ */
+
+'use strict';
+
+var KeySync = require('./key_sync');
+
+module.exports = keySyncFactory;
+
+/**
+ * @param {Object} $parse - Angular parse object
+ * @param {Object} $timeout - Angular timeout object
+ * @returns {Function} KeySync factory
+ */
+function keySyncFactory($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function(key) {
+    return new KeySync($parse, $timeout, key);
+  };
+}
+
+},{"./key_sync":7}],9:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Model class, an Angular friendly base key wrapper
  */
 
 'use strict';
@@ -533,9 +827,16 @@ var LOCAL_EVENTS = ['ready', 'error'];
  * @param {Object} $sync - Must implement synchronization interface
  * @param {Object} $conn - GoInstant connection service
  * @param {Object|String} key - GoInstant Key or string key name
+ * @param {function} factory - a factory for creating new models.
  */
 function Model($conn, key, $sync, factory) {
-  _.bindAll(this);
+  _.bindAll(this, [
+    '$sync',
+    '$key',
+    '$omit',
+    '$on',
+    '$off'
+  ]);
 
   _.extend(this, {
     $$factory: factory,
@@ -579,57 +880,13 @@ Model.prototype.$key = function(keyName) {
 };
 
 /**
- * Give the current key a new value
- * @public
- * @param {*} value - New value of key
- * @returns {Object} promise
- */
-Model.prototype.$set = function(value, opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.set(value, opts);
-  });
-};
-
-/**
- * Add a generated id with a
- * @public
- * @param {*} value - New value of key
- * @returns {Object} promise
- */
-Model.prototype.$add = function(value, opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.add(value, opts);
-  });
-};
-
-/**
- * Remove this key
- * @public
- * @returns {Object} promise
- */
-Model.prototype.$remove = function(opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.remove(opts);
-  });
-};
-
-/**
  * Returns a new object that does not contain prefixed methods
  * @public
  * @returns {Object} model
  */
 Model.prototype.$omit = function() {
   return _.omit(this, function(value, key){
-    return _.first(key) === '$';
+    return _.first(key) === '$' || key === 'constructor';
   });
 };
 
@@ -637,29 +894,27 @@ Model.prototype.$omit = function() {
  * Bind a listener to events on this key
  * @public
  */
-Model.prototype.$on = function(eventName, opts, listener) {
+Model.prototype.$on = function(eventName, listener) {
   if (!_.contains(LOCAL_EVENTS, eventName)) {
-    return this.$$key.on(eventName, opts, listener);
+    throw new Error('Invalid event name: ' + eventName);
   }
 
-  // Overloaded method, opts = listener
-  this.$$emitter.on(eventName, opts);
+  this.$$emitter.on(eventName, listener);
 };
 
 /**
  * Remove a listener on this key
  * @public
  */
-Model.prototype.$off = function(eventName, opts, listener) {
+Model.prototype.$off = function(eventName, listener) {
   if (!_.contains(LOCAL_EVENTS, eventName)) {
-    return this.$$key.off(eventName, opts, listener);
+    throw new Error('Invalid event name: ' + eventName);
   }
 
-  // Overloaded method, opts = listener
-  this.$$emitter.off(eventName, opts);
+  this.$$emitter.off(eventName, listener);
 };
 
-},{"emitter-component":11,"lodash":12}],7:[function(require,module,exports){
+},{"emitter-component":19,"lodash":20}],10:[function(require,module,exports){
 /* jshint browser:true, bitwise: false */
 /* global require, module */
 
@@ -672,8 +927,8 @@ Model.prototype.$off = function(eventName, opts, listener) {
 
 'use strict';
 
-var Model = require('./model');
-var Args = require('./util/args');
+var KeyModel = require('./key_model');
+var Args = require('args-js');
 var _ = require('lodash');
 
 /**
@@ -701,11 +956,11 @@ module.exports = function queryFactory($querySync, $goKey, $conn) {
     var query = key.query(a.expr || {}, a.options);
     var sync = $querySync(query);
 
-    return new Model($conn, key, sync, $goKey);
+    return new KeyModel($conn, key, sync, $goKey);
   };
 };
 
-},{"./model":6,"./util/args":9,"lodash":12}],8:[function(require,module,exports){
+},{"./key_model":6,"args-js":18,"lodash":20}],11:[function(require,module,exports){
 /* jshint browser:true */
 /* global require, module */
 
@@ -836,394 +1091,330 @@ QuerySync.prototype.$$handleRemove = function(result, context) {
   });
 };
 
-},{"lodash":12}],9:[function(require,module,exports){
+},{"lodash":20}],12:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
 /**
-The MIT License (MIT)
+ * @fileOverview
+ *
+ * This file contains the users factory, responsible for validating options and
+ * creating a new instance of the UsersModel.
+ */
 
-Copyright (c) 2013-2014, OMG Life Ltd
+'use strict';
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+var UsersModel = require('./users_model');
+var Args = require('args-js');
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
-
-var Args = (function() {
-
-  "use strict";
-
-  var _extractSchemeEl = function(rawSchemeEl) {
-    var schemeEl = {};
-    schemeEl.defValue = undefined;
-    schemeEl.typeValue = undefined;
-    schemeEl.customCheck = undefined;
-    for (var name in rawSchemeEl) {
-      if (!rawSchemeEl.hasOwnProperty(name)) continue;
-        if (name === "_default") {
-          schemeEl.defValue = rawSchemeEl[name];
-        } else if (name === "_type") {
-          schemeEl.typeValue = rawSchemeEl[name];
-        } else if (name === "_check") {
-          schemeEl.customCheck = rawSchemeEl[name];
-        } else {
-          schemeEl.sname = name;
-        }
-    }
-    schemeEl.sarg = rawSchemeEl[schemeEl.sname];
-    return schemeEl;
-  };
-
-  var _typeMatches = function(arg, schemeEl) {
-    if ((schemeEl.sarg & Args.ANY) !== 0) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.STRING) !== 0 && typeof arg === "string") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.FUNCTION) !== 0 && typeof arg === "function") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.INT) !== 0 && (typeof arg === "number" && Math.floor(arg) === arg)) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.FLOAT) !== 0 && typeof arg === "number") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.ARRAY) !== 0 && (arg instanceof Array)) {
-      return true;
-    }
-    if (((schemeEl.sarg & Args.OBJECT) !== 0 || schemeEl.typeValue !== undefined) && (
-      typeof arg === "object" &&
-      (schemeEl.typeValue === undefined || (arg instanceof schemeEl.typeValue))
-    )) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.ARRAY_BUFFER) !== 0 && arg.toString().match(/ArrayBuffer/)) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.DATE) !== 0 && arg instanceof Date) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.BOOL) !== 0 && typeof arg === "boolean") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.DOM_EL) !== 0 &&
-      (
-        (arg instanceof HTMLElement) ||
-        (window.$ !== undefined && arg instanceof window.$)
-      )
-    ) {
-      return true;
-    }
-    if (schemeEl.customCheck !== undefined && typeof schemeEl.customCheck === "function") {
-      if (schemeEl.customCheck(arg)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  var _isTypeSpecified = function(schemeEl) {
-    return (schemeEl.sarg & (Args.ANY | Args.STRING | Args.FUNCTION | Args.INT | Args.FLOAT | Args.OBJECT | Args.ARRAY_BUFFER | Args.DATE | Args.BOOL | Args.DOM_EL | Args.ARRAY)) != 0 || schemeEl.typeValue !== undefined;
-  };
-
-  var _getTypeString = function(schemeEl) {
-    var sarg = schemeEl.sarg;
-    var typeValue = schemeEl.typeValue;
-    var customCheck = schemeEl.customCheck;
-
-    if ((sarg & Args.STRING) !== 0 ) {
-      return "String";
-    }
-    if ((sarg & Args.FUNCTION) !== 0 ) {
-      return "Function";
-    }
-    if ((sarg & Args.INT) !== 0 ) {
-      return "Int";
-    }
-    if ((sarg & Args.FLOAT) !== 0 ) {
-      return "Float";
-    }
-    if ((sarg & Args.ARRAY) !== 0 ) {
-      return "Array";
-    }
-    if ((sarg & Args.OBJECT) !== 0) {
-      if (typeValue !== undefined) {
-        return "Object (" + typeValue.toString() + ")";
-      } else {
-        return "Object";
-      }
-    }
-    if ((sarg & Args.ARRAY_BUFFER) !== 0 ) {
-      return "Arry Buffer";
-    }
-    if ((sarg & Args.DATE) !== 0 ) {
-      return "Date";
-    }
-    if ((sarg & Args.BOOL) !== 0 ) {
-      return "Bool";
-    }
-    if ((sarg & Args.DOM_EL) !== 0 ) {
-      return "DOM Element";
-    }
-    if (customCheck !== undefined) {
-      return "[Custom checker]";
-    }
-    return "unknown";
-  };
-
-  var _checkNamedArgs = function(namedArgs, scheme, returns) {
-    var foundOne = false;
-    for (var s = 0  ; s < scheme.length ; s++) {
-      var found = (function(schemeEl) {
-        var argFound = false;
-        for (var name in namedArgs) {
-          var namedArg = namedArgs[name];
-          if (name === schemeEl.sname) {
-            if (_typeMatches(namedArg, schemeEl)) {
-              returns[name] = namedArg;
-              argFound = true;
-              break;
-            }
-          }
-        }
-        return argFound;
-      })(_extractSchemeEl(scheme[s]));
-      if (found) { scheme.splice(s--, 1); }
-      foundOne |= found;
-    }
-    return foundOne;
-  };
-
-  var _schemesMatch = function(schemeA, schemeB) {
-    if (!schemeA || !schemeB) { return false; }
-    return (schemeA.sarg & ~(Args.Optional | Args.Required)) === (schemeB.sarg & ~(Args.Optional | Args.Required)) &&
-         schemeA.typeValue === schemeB.typeValue && schemeA.customCheck === schemeB.customCheck;
-  };
-
-  var _isRequired = function(sarg) {
-    return !_isOptional(sarg);
-  };
-
-  var _isOptional = function(sarg) {
-    return (sarg & Args.Optional) !== 0;
-  };
+/**
+ * usersFactory
+ * @public
+ * @param {Object} keySync Responsible for synchronizing an Angular model,
+ * with an angular key.
+ * @param {Function} goKey Factory function for creating a new instance of the
+ *                         KeyModel
+ * @param {Object} conn GoInstant connection service
+ * @param {Function} goSelf Factory function for creating a new instance of the
+ *                   SelfModel
+ * @returns {Function} option validation & instance creation
+ */
+module.exports = function usersFactory($usersSync, $goKey, $conn, $q) {
 
   /**
-   * Last argument may be a named argument object. This is decided in a non-greedy way, if
-   * there are any unmatched arguments after the normal process and the last argument is an
-   * object it is inspected for matching names.
-   *
-   * If the last argument is a named argument object and it could potentially be matched to
-   * a normal object in the schema the object is first used to try to match any remaining
-   * required args (including the object that it would match against). Only if there are no
-   * remaining required args or none of the remaining required args are matched will the
-   * last object arg match against a normal schema object.
-   *
-   * Runs of objects with the same type are matched greedily but if a required object is
-   * encountered in the schema after all objects of that type have been matched the previous
-   * matches are shifted right to cover the new required arg. Shifts can only happen from
-   * immediately preceding required args or optional args. If a previous required arg is
-   * matched but an optional arg seprates the new required arg from the old one only the
-   * optional arg in between can be shifted. The required arg and any preceding optional
-   * args are not shifted.
+   * @public
+   * @param {Object} key - GoInstant key
    */
-  var Args = function(scheme, args) {
-    if (scheme === undefined) throw new Error("The scheme has not been passed.");
-    if (args === undefined) throw new Error("The arguments have not been passed.");
+  return function $key() {
+    var a = new Args([
+      { room: Args.STRING | Args.Optional }
+    ], arguments);
 
-    args = Array.prototype.slice.call(args,0);
+    var key = $conn.$key('.users', a.room || 'lobby');
+    var sync = $usersSync(key);
 
-    var returns = {};
-    var err = undefined;
-
-    var runType = undefined;
-    var run = [];
-    var _addToRun = function(schemeEl) {
-      if (
-        !runType ||
-        !_schemesMatch(runType, schemeEl) ||
-        (_isRequired(runType.sarg) && _isOptional(schemeEl.sarg))
-      ) {
-        run = [];
-      }
-      if (run.length > 0 || _isOptional(schemeEl.sarg)) {
-        runType = schemeEl;
-        run.push(schemeEl);
-      }
-    };
-    var _shiftRun = function(schemeEl, r) {
-      if (r === undefined) r = run.length-1;
-      if (r < 0) return;
-      var lastMatch = run[r];
-      returns[schemeEl.sname] = returns[lastMatch.sname];
-      returns[lastMatch.sname] = undefined;
-      if ((lastMatch.sarg & Args.Optional) === 0) { // if the last in the run was not optional
-        _shiftRun(lastMatch, r-1);
-      }
-    };
-
-
-    var a, s;
-
-
-    // first let's extract any named args
-    if (typeof args[args.length-1] === "object") {
-      if (_checkNamedArgs(args[args.length-1], scheme, returns)) {
-        args.splice(args.length-1,1);
-      }
-    }
-
-
-    for (a = 0, s = 0; s < scheme.length ; s++) {
-      a = (function(a,s) {
-
-        var arg = args[a];
-
-        // argument group
-        if (scheme[s] instanceof Array) {
-          if (arg === null || arg === undefined) {
-            err = "Argument " + a + " is null or undefined but it must be not null.";
-            return a;
-          } else {
-            var group = scheme[s];
-            var retName = undefined;
-            for (var g = 0 ; g < group.length ; g++) {
-              var schemeEl = _extractSchemeEl(group[g]);
-              if (_typeMatches(arg, schemeEl)) {
-                retName = schemeEl.sname;
-              }
-            }
-            if (retName === undefined) {
-              err = "Argument " + a + " should be one of: ";
-              for (var g = 0 ; g < group.length ; g++) {
-                var schemeEl = _extractSchemeEl(group[g]);
-                err += _getTypeString(schemeEl) + ", ";
-              }
-              err += "but it was type " + (typeof arg) + " with value " + arg + ".";
-              return a;
-            } else {
-              returns[retName] = arg;
-              return a+1;
-            }
-          }
-        } else {
-          var schemeEl = _extractSchemeEl(scheme[s]);
-
-          // optional arg
-
-          if ((schemeEl.sarg & Args.Optional) !== 0) {
-            // check if this arg matches the next schema slot
-            if ( arg === null || arg === undefined) {
-              if (schemeEl.defValue !== undefined)  {
-                returns[schemeEl.sname] = schemeEl.defValue;
-              } else {
-                returns[schemeEl.sname] = arg;
-              }
-              return a+1; // if the arg is null or undefined it will fill a slot, but may be replace by the default value
-            } else if (_typeMatches(arg, schemeEl)) {
-              returns[schemeEl.sname] = arg;
-              _addToRun(schemeEl);
-              return a+1;
-            } else if (schemeEl.defValue !== undefined)  {
-              returns[schemeEl.sname] = schemeEl.defValue;
-              return a;
-            }
-          }
-
-          // manadatory arg
-          else { //if ((schemeEl.sarg & Args.NotNull) !== 0) {
-            if (arg === null || arg === undefined) {
-              if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
-                _shiftRun(schemeEl);
-                _addToRun(schemeEl);
-                return a;
-              } else {
-                err = "Argument " + a + " ("+schemeEl.sname+") is null or undefined but it must be not null.";
-                return a;
-              }
-            }
-            else if (!_typeMatches(arg, schemeEl)) {
-              if (_isTypeSpecified(schemeEl)) {
-                if (_schemesMatch(schemeEl, runType)) {
-                  _shiftRun(schemeEl);
-                  _addToRun(schemeEl);
-                  return a+1;
-                } else {
-                  err = "Argument " + a + " ("+schemeEl.sname+") should be type "+_getTypeString(schemeEl)+", but it was type " + (typeof arg) + " with value " + arg + ".";
-                }
-              } else if (schemeEl.customCheck !== undefined) {
-                var funcString = schemeEl.customCheck.toString();
-                if (funcString.length > 50) {
-                  funcString = funcString.substr(0, 40) + "..." + funcString.substr(funcString.length-10);
-                }
-                err = "Argument " + a + " ("+schemeEl.sname+") does not pass the custom check ("+funcString+").";
-              } else {
-                err = "Argument " + a + " ("+schemeEl.sname+") has no valid type specified.";
-              }
-              return a;
-            } else {
-              returns[schemeEl.sname] = arg;
-              _addToRun(schemeEl);
-              return a+1;
-            }
-          }
-
-        }
-
-        return a;
-      })(a,s);
-      if (err) {
-        break;
-      }
-    }
-
-    if (err) {
-      throw new Error(err);
-    }
-
-    return returns;
+    return new UsersModel($conn, key, sync, $goKey, $q);
   };
+};
 
-  Args.ANY    = 0x1;
-  Args.STRING   = 0x1 << 1;
-  Args.FUNCTION   = 0x1 << 2;
-  Args.INT    = 0x1 << 3;
-  Args.FLOAT    = 0x1 << 4;
-  Args.ARRAY_BUFFER = 0x1 << 5;
-  Args.OBJECT   = 0x1 << 6;
-  Args.DATE   = 0x1 << 7;
-  Args.BOOL   = 0x1 << 8;
-  Args.DOM_EL   = 0x1 << 9;
-  Args.ARRAY    = 0x1 << 10;
+},{"./users_model":13,"args-js":18}],13:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the UsersModel class, an Angular friendly .users key
+ * wrapper
+ */
+
+'use strict';
+
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var Model = require('./model');
+var KeyModel = require('./key_model');
+
+module.exports = UsersModel;
+
+var ROOM_EVENTS = ['join', 'leave'];
+var SELF = 'self';
+
+/**
+ * @public
+ * @constructor
+ * @class
+ * @extends Model
+ */
+function UsersModel() {
+  Model.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$getUser',
+    '$on',
+    '$off'
+  ]);
+
+  _.extend(this, {
+    $local: null,
+    $$q: arguments[4]
+  });
+}
+
+inheritPrototype(UsersModel, Model);
+
+/**
+ * Give the current key a new value
+ * @public
+ * @param {Boolean} sync - Default true, automatically syncs when called
+ * @returns {Object} promise
+ */
+UsersModel.prototype.$self = function(sync) {
+  var self = this;
+
+  sync = _.isBoolean(sync) ? sync : true;
+
+  var defer = this.$$q.defer();
+
+  this.$$conn.$ready().then(function() {
+    var key = self.$$key.room().self();
+
+    self.$$sync.$timeout(function() {
+      self.$local = self.$$factory(key);
+
+      if (sync) {
+        self.$local.$sync();
+        self.$local.$on('ready', function() {
+          defer.resolve(self.$local);
+        });
+
+      } else {
+        defer.resolve(self.$local);
+      }
+    });
+  });
+
+  return defer.promise;
+};
+
+/**
+ * Create and return a new instance of Model, with a relative key.
+ * @public
+ * @param {String} keyName - Key name
+ */
+UsersModel.prototype.$getUser = KeyModel.prototype.$key;
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ * @extends Model#on
+ */
+UsersModel.prototype.$on = function(eventName, opts, listener) {
+  if (eventName === SELF) {
+    return this.$$emitter.on(eventName, opts || listener);
+  }
+
+  if (!_.contains(ROOM_EVENTS, eventName)) {
+    if (!_.isFunction(opts)) {
+      _.extend(opts, { bubble: true });
+    }
+
+    return KeyModel.prototype.$on.call(this, eventName, opts, listener);
+  }
+
+  this.$$key.room().on(eventName, opts, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ * @extends Model#off
+ */
+UsersModel.prototype.$off = function(eventName, opts, listener) {
+  if (!_.contains(ROOM_EVENTS, eventName)) {
+    if (!_.isFunction(opts)) {
+      _.extend(opts, { bubble: true });
+    }
+
+    return KeyModel.prototype.$off.call(this, eventName, opts, listener);
+  }
+
+  this.$$key.room().off(eventName, opts, listener);
+};
+
+},{"./key_model":6,"./model":9,"./util/inherit":16,"lodash":20}],14:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the UsersSync class, used to create a binding between
+ * a model on $scope and the GoInstant .users key
+ */
+
+'use strict';
+
+/* @todo slowly phase out external dependencies */
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var KeySync = require('./key_sync');
+
+module.exports = UsersSync;
+
+/**
+ * The UsersSync class is responsible for synchronizing the state of a local
+ * model with that of a GoInstant .users key.
+ *
+ * @constructor
+ * @extends KeySync
+ */
+function UsersSync() {
+  KeySync.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$initialize',
+    '$$handleJoin',
+    '$$handleLeave'
+  ]);
+
+  this.$$roomRegistry = {};
+}
+
+inheritPrototype(UsersSync, KeySync);
+
+/**
+ * Creates an association between a local object and a .users key in GoInstant
+ * by monitoring when a user joins and leaves the room.
+ * @param {Object} model - local object
+ * @extends KeySync#$initialize
+ */
+UsersSync.prototype.$initialize = function(model) {
+  _.extend(this.$$roomRegistry, {
+    join: this.$$handleJoin,
+    leave: this.$$handleLeave
+  });
+
+  var room = this.$$key.room();
+
+  _.each(this.$$roomRegistry, function(fn, event) {
+    room.on(event, { local: true }, fn);
+  });
+
+  KeySync.prototype.$initialize.call(this, model);
+};
+
+/**
+ * Handles adding a new user to the model when they join the room
+ * @param {Object} user A GoInstant userObject
+ */
+UsersSync.prototype.$$handleJoin = function(user) {
+  var self = this;
+
+  this.$timeout(function() {
+    self.$$model[user.id] = user;
+    self.$$model.$$emitter.emit('join', user);
+  });
+};
+
+/**
+ * Handles removing a new user from the model when they leave the room
+ * @param {Object} user A GoInstant userObject
+ */
+UsersSync.prototype.$$handleLeave = function(user) {
+  var self = this;
+
+  this.$timeout(function() {
+    delete self.$$model[user.id];
+    self.$$model.$$emitter.emit('leave', user);
+  });
+};
+
+},{"./key_sync":7,"./util/inherit":16,"lodash":20}],15:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the usersSync factory, used to create a new instance of
+ * UsersSync.
+ */
+
+'use strict';
+
+var UsersSync = require('./users_sync');
+
+module.exports = usersSyncFactory;
+
+function usersSyncFactory($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function(key) {
+    return new UsersSync($parse, $timeout, key);
+  };
+}
+
+},{"./users_sync":14}],16:[function(require,module,exports){
+/* jshint browser:true */
+/* global module, require */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the inheritPrototype function, responsible for inheriting
+ * a SuperClass's prototype into a SubClass.
+ */
+
+'use strict';
+
+var _ = require('lodash');
+
+module.exports = inheritPrototype;
+
+var createObject = Object.create;
+
+if (!_.isFunction(createObject)) {
+  createObject = function(obj) {
+    function F() {}
+
+    F.prototype = obj;
+    return new F();
+  };
+}
+
+function inheritPrototype(SubClass, SuperClass) {
+  var superCopy = createObject(SuperClass.prototype);
+  superCopy.constructor = SubClass;
+
+  SubClass.prototype = superCopy;
+}
 
 
-  Args.Optional   = 0x1 << 11;
-  Args.NotNull    =
-  Args.Required   = 0x1 << 12;
-
-  return Args;
-})();
-
-
-try {
-  module.exports = Args;
-} catch (e) {}
-
-},{}],10:[function(require,module,exports){
+},{"lodash":20}],17:[function(require,module,exports){
 /* jshint browser:true */
 /* global module */
 
@@ -1278,7 +1469,411 @@ module.exports = function normalize(value, context) {
   return value;
 };
 
-},{}],11:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
+/**
+The MIT License (MIT)
+
+Copyright (c) 2013-2014, OMG Life Ltd 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+var Args = (function() {
+
+	"use strict";
+
+	var _extractSchemeEl = function(rawSchemeEl) {
+		var schemeEl = {};
+		schemeEl.defValue = undefined;
+		schemeEl.typeValue = undefined;
+		schemeEl.customCheck = undefined;
+		for (var name in rawSchemeEl) {
+			if (!rawSchemeEl.hasOwnProperty(name)) continue;
+				if (name === "_default") {
+					schemeEl.defValue = rawSchemeEl[name];
+				} else if (name === "_type") {
+					schemeEl.typeValue = rawSchemeEl[name];
+				} else if (name === "_check") {
+					schemeEl.customCheck = rawSchemeEl[name];
+				} else {
+					schemeEl.sname = name;
+				}
+		}
+		schemeEl.sarg = rawSchemeEl[schemeEl.sname];
+		return schemeEl;
+	};
+
+	var _typeMatches = function(arg, schemeEl) {
+		var ok = false;
+		if ((schemeEl.sarg & Args.ANY) !== 0) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.STRING) !== 0 && typeof arg === "string") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.FUNCTION) !== 0 && typeof arg === "function") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.INT) !== 0 && (typeof arg === "number" && Math.floor(arg) === arg)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.FLOAT) !== 0 && typeof arg === "number") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.ARRAY) !== 0 && (arg instanceof Array)) {
+			ok = true;
+		}
+		else if (((schemeEl.sarg & Args.OBJECT) !== 0 || schemeEl.typeValue !== undefined) && (
+			typeof arg === "object" &&
+			(schemeEl.typeValue === undefined || (arg instanceof schemeEl.typeValue))
+		)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.ARRAY_BUFFER) !== 0 && arg.toString().match(/ArrayBuffer/)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.DATE) !== 0 && arg instanceof Date) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.BOOL) !== 0 && typeof arg === "boolean") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.DOM_EL) !== 0 &&
+			(
+				(arg instanceof HTMLElement) ||
+				(window.$ !== undefined && arg instanceof window.$)
+			)
+		) {
+			ok = true;
+		}
+		if (schemeEl.customCheck !== undefined && typeof schemeEl.customCheck === "function") {
+			if (schemeEl.customCheck(arg)) {
+				ok = true;
+			} else {
+				ok = false;
+			}
+		}
+		return ok;
+	};
+
+	var _isTypeSpecified = function(schemeEl) {
+		return (schemeEl.sarg & (Args.ANY | Args.STRING | Args.FUNCTION | Args.INT | Args.FLOAT | Args.OBJECT | Args.ARRAY_BUFFER | Args.DATE | Args.BOOL | Args.DOM_EL | Args.ARRAY)) != 0 || schemeEl.typeValue !== undefined;
+	};
+
+	var _getTypeString = function(schemeEl) {
+		var sarg = schemeEl.sarg;
+		var typeValue = schemeEl.typeValue;
+		var customCheck = schemeEl.customCheck;
+
+		if ((sarg & Args.STRING) !== 0 ) {
+			return "String";
+		}
+		if ((sarg & Args.FUNCTION) !== 0 ) {
+			return "Function";
+		}
+		if ((sarg & Args.INT) !== 0 ) {
+			return "Int";
+		}
+		if ((sarg & Args.FLOAT) !== 0 ) {
+			return "Float";
+		}
+		if ((sarg & Args.ARRAY) !== 0 ) {
+			return "Array";
+		}
+		if ((sarg & Args.OBJECT) !== 0) {
+			if (typeValue !== undefined) {
+				return "Object (" + typeValue.toString() + ")";
+			} else {
+				return "Object";
+			}
+		}
+		if ((sarg & Args.ARRAY_BUFFER) !== 0 ) {
+			return "Arry Buffer";	
+		}
+		if ((sarg & Args.DATE) !== 0 ) {
+			return "Date";	
+		}
+		if ((sarg & Args.BOOL) !== 0 ) {
+			return "Bool";
+		}
+		if ((sarg & Args.DOM_EL) !== 0 ) {
+			return "DOM Element";
+		}
+		if (customCheck !== undefined) {
+			return "[Custom checker]";
+		}
+		return "unknown";
+	};
+
+	var _checkNamedArgs = function(namedArgs, scheme, returns) {
+		var foundOne = false;
+		for (var s = 0  ; s < scheme.length ; s++) {
+			var found = (function(schemeEl) {
+				var argFound = false;
+				for (var name in namedArgs) {
+					var namedArg = namedArgs[name];
+					if (name === schemeEl.sname) {
+						if (_typeMatches(namedArg, schemeEl)) {
+							returns[name] = namedArg;
+							argFound = true;
+							break;
+						}
+					}
+				}
+				return argFound;
+			})(_extractSchemeEl(scheme[s]));
+			if (found) { scheme.splice(s--, 1); }
+			foundOne |= found;
+		}
+		return foundOne;
+	};
+
+	var _schemesMatch = function(schemeA, schemeB) {
+		if (!schemeA || !schemeB) { return false; }
+		return (schemeA.sarg & ~(Args.Optional | Args.Required)) === (schemeB.sarg & ~(Args.Optional | Args.Required)) &&
+			   schemeA.typeValue === schemeB.typeValue;
+	};
+
+	var _isRequired = function(sarg) {
+		return !_isOptional(sarg);
+	};
+
+	var _isOptional = function(sarg) {
+		return (sarg & Args.Optional) !== 0;
+	};
+
+	var _reasonForFailure = function(schemeEl, a, arg) {
+		var err = ""
+		if (_isTypeSpecified(schemeEl)) {
+			err = "Argument " + a + " ("+schemeEl.sname+") should be type "+_getTypeString(schemeEl)+", but it was type " + (typeof arg) + " with value " + arg + ".";
+		} else if (schemeEl.customCheck !== undefined) {
+			var funcString = schemeEl.customCheck.toString();
+			if (funcString.length > 50) {
+				funcString = funcString.substr(0, 40) + "..." + funcString.substr(funcString.length-10);
+			}
+			err = "Argument " + a + " ("+schemeEl.sname+") does not pass the custom check ("+funcString+").";
+		} else {
+			err = "Argument " + a + " ("+schemeEl.sname+") has no valid type specified.";
+		}
+		return err;
+	};
+
+	/**
+	 * Last argument may be a named argument object. This is decided in a non-greedy way, if
+	 * there are any unmatched arguments after the normal process and the last argument is an
+	 * object it is inspected for matching names.
+	 *
+	 * If the last argument is a named argument object and it could potentially be matched to
+	 * a normal object in the schema the object is first used to try to match any remaining
+	 * required args (including the object that it would match against). Only if there are no
+	 * remaining required args or none of the remaining required args are matched will the
+	 * last object arg match against a normal schema object.
+	 *
+	 * Runs of objects with the same type are matched greedily but if a required object is
+	 * encountered in the schema after all objects of that type have been matched the previous
+	 * matches are shifted right to cover the new required arg. Shifts can only happen from
+	 * immediately preceding required args or optional args. If a previous required arg is
+	 * matched but an optional arg seprates the new required arg from the old one only the
+	 * optional arg in between can be shifted. The required arg and any preceding optional
+	 * args are not shifted.
+	 */
+	var Args = function(scheme, args) {
+		if (scheme === undefined) throw new Error("The scheme has not been passed.");
+		if (args === undefined) throw new Error("The arguments have not been passed.");
+
+		args = Array.prototype.slice.call(args,0);
+
+		var returns = {};
+		var err = undefined;
+
+		var runType = undefined;
+		var run = [];
+		var _addToRun = function(schemeEl) {
+			if (
+				!runType ||
+				!_schemesMatch(runType, schemeEl) ||
+				(_isRequired(runType.sarg) && _isOptional(schemeEl.sarg))
+			) {
+				run = [];
+			}
+			if (run.length > 0 || _isOptional(schemeEl.sarg)) {
+				runType = schemeEl;
+				run.push(schemeEl);
+			}
+		};
+		var _shiftRun = function(schemeEl, a, r) {
+			if (r === undefined) r = run.length-1;
+			if (r < 0) return;
+			var lastMatch = run[r];
+			var arg = returns[lastMatch.sname];
+			if (_typeMatches(arg, schemeEl)) {
+				returns[schemeEl.sname] = arg;
+				returns[lastMatch.sname] = lastMatch.defValue || undefined;
+				if ((lastMatch.sarg & Args.Optional) === 0) { // if the last in the run was not optional
+					_shiftRun(lastMatch, a, r-1);
+				}
+			} else {
+				return _reasonForFailure(schemeEl, arg, a);
+			}
+		};
+
+
+		var a, s;
+
+
+		// first let's extract any named args
+		if (typeof args[args.length-1] === "object") {
+			if (_checkNamedArgs(args[args.length-1], scheme, returns)) {
+				args.splice(args.length-1,1);
+			}
+		}
+		
+
+		for (a = 0, s = 0; s < scheme.length ; s++) {
+			a = (function(a,s) {
+
+				var arg = args[a];
+
+				// argument group
+				if (scheme[s] instanceof Array) {
+					if (arg === null || arg === undefined) {
+						err = "Argument " + a + " is null or undefined but it must be not null.";
+						return a;
+					} else {
+						var group = scheme[s];
+						var retName = undefined;
+						for (var g = 0 ; g < group.length ; g++) {
+							var schemeEl = _extractSchemeEl(group[g]);
+							if (_typeMatches(arg, schemeEl)) {
+								retName = schemeEl.sname;
+							}
+						}
+						if (retName === undefined) {
+							err = "Argument " + a + " should be one of: ";
+							for (var g = 0 ; g < group.length ; g++) {
+								var schemeEl = _extractSchemeEl(group[g]);
+								err += _getTypeString(schemeEl) + ", ";
+							}
+							err += "but it was type " + (typeof arg) + " with value " + arg + ".";
+							return a;
+						} else {
+							returns[retName] = arg;
+							return a+1;
+						}
+					}
+				} else {
+					var schemeEl = _extractSchemeEl(scheme[s]);
+
+					// optional arg
+					if ((schemeEl.sarg & Args.Optional) !== 0) {
+						// check if this arg matches the next schema slot
+						if ( arg === null || arg === undefined) {
+							if (schemeEl.defValue !== undefined)  {
+								returns[schemeEl.sname] = schemeEl.defValue;
+							} else {
+								returns[schemeEl.sname] = arg;
+							}
+							return a+1; // if the arg is null or undefined it will fill a slot, but may be replace by the default value
+						} else if (_typeMatches(arg, schemeEl)) {
+							returns[schemeEl.sname] = arg;
+							_addToRun(schemeEl);
+							return a+1;
+						} else if (schemeEl.defValue !== undefined)  {
+							returns[schemeEl.sname] = schemeEl.defValue;
+							return a;
+						}
+					}
+
+					// manadatory arg
+					else { //if ((schemeEl.sarg & Args.NotNull) !== 0) {
+						if (arg === null || arg === undefined) {
+							if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
+								err = _shiftRun(schemeEl, a);
+								if (err === "") {
+									_addToRun(schemeEl);
+								}
+								return a;
+							} else {
+								err = "Argument " + a + " ("+schemeEl.sname+") is null or undefined but it must be not null.";
+								return a;
+							}
+						}
+						else if (!_typeMatches(arg, schemeEl)) {
+							if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
+								err = _shiftRun(schemeEl, a);
+								if (err === "") {
+									_addToRun(schemeEl);
+									return a+1;
+								}
+							} else {
+								err = _reasonForFailure(schemeEl, arg, a);
+							}
+							return a;
+						} else {
+							returns[schemeEl.sname] = arg;
+							_addToRun(schemeEl);
+							return a+1;
+						}
+					}
+
+				}
+
+				return a;
+			})(a,s);
+			if (err) {
+				break;
+			}
+		}
+
+		if (err) {
+			throw new Error(err);
+		}
+
+		return returns;
+	};
+
+	Args.ANY	  = 0x1;
+	Args.STRING	  = 0x1 << 1;
+	Args.FUNCTION	  = 0x1 << 2;
+	Args.INT	  = 0x1 << 3;
+	Args.FLOAT	  = 0x1 << 4;
+	Args.ARRAY_BUFFER = 0x1 << 5;
+	Args.OBJECT	  = 0x1 << 6;
+	Args.DATE	  = 0x1 << 7;
+	Args.BOOL	  = 0x1 << 8;
+	Args.DOM_EL	  = 0x1 << 9;
+	Args.ARRAY	  = 0x1 << 10;
+
+
+	Args.Optional	  = 0x1 << 11;
+	Args.NotNull	  =
+	Args.Required	  = 0x1 << 12;
+
+	return Args;
+})();
+
+
+try {
+	module.exports = Args;
+} catch (e) {}
+
+},{}],19:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -1444,7 +2039,7 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
-},{}],12:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (global){
 /**
  * @license

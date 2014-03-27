@@ -37,21 +37,13 @@ We've packaged GoAngular as a [bower](http://bower.io/) component.
 bower install goangular
 ```
 
-#### Component
-
-We've packaged GoAngular as a [component](http://component.io/).
-
-```
-component install goangular
-```
-
 ## Contributing
 
 ### Development Dependencies
 
 - [node.js](http://nodejs.org/) >= 0.8.0
-- [grunt-cli installed globally](http://gruntjs.com/getting-started)
-  - `npm install -g grunt-cli`
+- [gulp installed globally](https://github.com/gulpjs/gulp/blob/master/docs/getting-started.md#getting-started)
+  - `$ npm install -g gulp`
 
 ### Set-Up
 
@@ -65,44 +57,39 @@ npm install
 
 #### Building GoAngular for Development
 
-GoAngular is built as a [component](https://github.com/component/component).
-Feel free to manually install dependencies and build using the `component`
-command line tool.
+GoAngular is built using [browserify](http://browserify.org/).
 
-For convenience, we've included a simple grunt command for installing
-component dependencies and building:
+For convenience, we've included a number of simple gulp commands:
 
-```
-grunt build
-```
+| *default task*:   `$ gulp` |
+| --- |
+| Removes `build` & `dist` directories |
+| Browserify `lib` & `index.js` to `build` directory as `build.js` |
+| Start [LiveReload](http://livereload.com/) & watch directories, re-build on change |
+| Serve static assets via. [Harp](http://harpjs.com/) & open `/example/index.html` on port `5000` in Chrome |
 
-If this command runs succesfully you'll now have `components` and `build`
-directories in your Git repo root.
+| *develop task*:   `$ gulp develop` |
+| --- |
+| Removes `build` & `dist` directories |
+| Browserify `lib` & `index.js` to `build` directory as `build.js` |
 
-### Running Tests
+| *test task*:   `$ gulp test` |
+| --- |
+| Start [Karma test-runner](http://karma-runner.github.io/0.12/index.html), you'll need [PhantomJS](http://phantomjs.org/) |
 
-Tests are written in [mocha](http://visionmedia.github.io/mocha/). They're run
-in an [HTML file](http://visionmedia.github.io/mocha/#html-reporter).
-
-Just open the test/index.html file to run the tests.
-
-On Mac OS, you can just run this command to open the HTML Runner in your
-default browser:
-
-```
-open test/index.html
-```
+If this command runs successfully you'll now have a `build`
+directory in your Git repo root.
 
 ### Running Example
 
 This will open up an example of GoAngular at work, using your local build.
 
-You should have run `grunt build` already.
+You should have run `$ gulp develop` or `$ gulp` already.
 
 #### 1. Copy the example config.
 
 ```
-cp config/config.example.js config/config.js
+$ cp config/config.example.js config/config.js
 ```
 
 #### 2. Replace the connectUrl with your Platform application's.
@@ -123,5 +110,5 @@ window.CONFIG = {
 #### 3. Open the example
 
 ```
-open examples/index.html
+$ open examples/index.html
 ```

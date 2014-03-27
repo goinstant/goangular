@@ -1,217 +1,1879 @@
-;(function(){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, angular */
+/* exported goinstant */
 
 /**
- * Require the given path.
+ * @fileOverview
  *
- * @param {String} path
- * @return {Object} exports
- * @api public
+ * Contains Angular service and filter registrations
+ **/
+
+'use strict';
+
+var connectionFactory = require('./lib/connection_factory');
+
+var keySyncFactory = require('./lib/key_sync_factory');
+var keyFactory = require('./lib/key_factory');
+
+var querySync = require('./lib/query_sync');
+var queryFactory = require('./lib/query_factory');
+
+var usersSyncFactory = require('./lib/users_sync_factory');
+var usersFactory = require('./lib/users_factory');
+
+var keyFilter = require('./lib/key_filter');
+
+/** Module Registration */
+
+var goangular = angular.module('goangular', []);
+
+/** Services **/
+
+goangular.provider('$goConnection', connectionFactory);
+
+goangular.factory('$goKeySync', [ '$parse', '$timeout', keySyncFactory ]);
+goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
+
+goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
+goangular.factory('$goQuery', [
+  '$goQuerySync',
+  '$goKey',
+  '$goConnection',
+  queryFactory
+]);
+
+goangular.factory('$goUsersSync', [ '$parse', '$timeout', usersSyncFactory ]);
+goangular.factory('$goUsers', [
+  '$goUsersSync',
+  '$goKey',
+  '$goConnection',
+  '$q',
+  usersFactory
+]);
+
+goangular.filter('keyFilter', keyFilter);
+
+},{"./lib/connection_factory":3,"./lib/key_factory":4,"./lib/key_filter":5,"./lib/key_sync_factory":8,"./lib/query_factory":10,"./lib/query_sync":11,"./lib/users_factory":12,"./lib/users_sync_factory":15}],2:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module, goinstant */
+
+/**
+ * @fileOverview
+ *
+ * This file contains an abstraction of the goinstant.connect method
  */
 
-function require(path, parent, orig) {
-  var resolved = require.resolve(path);
+'use strict';
 
-  // lookup failed
-  if (null == resolved) {
-    orig = orig || path;
-    parent = parent || 'root';
-    var err = new Error('Failed to require "' + orig + '" from "' + parent + '"');
-    err.path = orig;
-    err.parent = parent;
-    err.require = true;
-    throw err;
-  }
+var _ = require('lodash');
 
-  var module = require.modules[resolved];
+module.exports = Connection;
 
-  // perform real require()
-  // by invoking the module's
-  // registered function
-  if (!module.exports) {
-    module.exports = {};
-    module.client = module.component = true;
-    module.call(this, module.exports, require.relative(resolved), module);
-  }
-
-  return module.exports;
+/**
+ * Instantiated by the Connection factory, this class allows users to configure
+ * a goinstant connection during Angulars configuration stage.
+ * @public
+ * @constructor
+ * @class
+ * @example
+ *  angular.module('YourApp', ['goangular'])
+ *    .config(function(goConnectionProvider) {
+ *      goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+ *    })
+ *    .controller('YourCtrl', function(goConnection) {
+ *      goConnection.$ready().then(function(connection) {
+ *        // connected
+ *      });
+ *    });
+ */
+function Connection() {
+  _.extend(this, {
+    $$opts: {},
+    $$connection: null,
+    $$connecting: false,
+    $$configured: false,
+    $$rooms: {},
+    isGuest: null,
+    loginProviders: [],
+    logoutUrl: null
+  });
 }
 
 /**
- * Registered modules.
+ * Configure & connect to GoInstant
+ * @param {String} url - Registered application URL
+ * @param {Object} [opts]
+ * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
+ * @config {String} room - is an optional room name, defaults to 'lobby'
+ * with the room option
  */
-
-require.modules = {};
-
-/**
- * Registered aliases.
- */
-
-require.aliases = {};
-
-/**
- * Resolve `path`.
- *
- * Lookup:
- *
- *   - PATH/index.js
- *   - PATH.js
- *   - PATH
- *
- * @param {String} path
- * @return {String} path or null
- * @api private
- */
-
-require.resolve = function(path) {
-  if (path.charAt(0) === '/') path = path.slice(1);
-
-  var paths = [
-    path,
-    path + '.js',
-    path + '.json',
-    path + '/index.js',
-    path + '/index.json'
-  ];
-
-  for (var i = 0; i < paths.length; i++) {
-    var path = paths[i];
-    if (require.modules.hasOwnProperty(path)) return path;
-    if (require.aliases.hasOwnProperty(path)) return require.aliases[path];
+Connection.prototype.$connect = function(url, opts) {
+  if (this.$$configured) {
+    throw new Error(
+      '$connect should not be used in conjunction with $set or invoked twice'
+    );
   }
+
+  if (this.$$connection) {
+    return this.$$connection;
+  }
+
+  this.$set(url, opts);
+  this.$$connect();
+
+  return this.$$connection;
 };
 
 /**
- * Normalize `path` relative to the current path.
+ * Configure a future goinstant connection
+ * @param {String} url - Registered application URL
+ * @param {Object} [opts]
+ * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
+ * @config {String} room - is an optional room name, defaults to 'lobby'
+ * with the room option
+ */
+Connection.prototype.$set = function(url, opts) {
+  if (!window.goinstant) {
+    throw new Error('GoAngular requires the GoInstant library.');
+  }
+
+  this.$$configured = true;
+  this.$$conn = new goinstant.Connection(url);
+
+  _.extend(this, { $$opts: (opts || {}), $$url: url, $$configured: true });
+};
+
+/**
+ * This method is invoked by Angulars dependency injection system and initiates
+ * the connection with GoInstant
+ */
+Connection.prototype.$get = function() {
+  if (!window.goinstant) {
+    throw new Error('GoAngular requires the GoInstant library.');
+  }
+
+  if (this.$$configured && !this.$$connecting) {
+    this.$$connect();
+  }
+
+  return this;
+};
+
+Connection.prototype.$key = function(keyName, roomName) {
+  if (!this.$$configured) {
+    throw new Error(
+      'You must configure you connection first. ' +
+      'Find additional details: ' +
+      'https://developers.goinstant.com/v1/GoAngular/connection.html');
+  }
+
+  roomName = roomName || this.$$opts.room || 'lobby';
+
+  if (!this.$$rooms[roomName]) {
+    var self = this;
+
+    this.$$rooms[roomName] = true;
+    this.$$connection = this.$$connection.then(function() {
+      return self.$$conn.room(roomName).join().then(function() {
+        return self.$$conn;
+      });
+    });
+  }
+
+  return this.$$conn.room(roomName).key(keyName);
+};
+
+/**
+ * Responsible for connecting to goinstant, assigns a promise to the private
+ * connection property
+ */
+Connection.prototype.$$connect = function() {
+  if (!this.$$configured) {
+    throw new Error('The GoInstant connection must be configured first.');
+  }
+
+  var user  = this.$$opts.user || {};
+
+  this.$$connecting = true;
+
+  var self = this;
+  this.$$connection = this.$$conn.connect(user || {}, function() {
+    self.isGuest = self.$$conn.isGuest();
+  });
+};
+
+Connection.prototype.$loginUrl = function(providers, returnTo) {
+  var self = this;
+
+  if (_.isArray(providers)) {
+    _.each(providers, function(provider) {
+      var provObj = {
+        name: provider,
+        url: self.$$conn.loginUrl(format(provider).toLowerCase(), returnTo)
+      };
+
+      self.loginProviders.push(provObj);
+    });
+
+  } else {
+    var provider = _.isString(providers) ? providers.toLowerCase() : null;
+    var provObj = {
+      name: providers || 'All',
+      url: this.$$conn.loginUrl(format(provider), returnTo)
+    };
+
+    this.loginProviders.push(provObj);
+  }
+};
+
+Connection.prototype.$logoutUrl = function(returnTo) {
+  this.logoutUrl = this.$$conn.logoutUrl(returnTo);
+};
+
+/**
+ * @returns {Object} connection - a promise which will be resolved once a
+ * connection has been established or rejected if an async error is encountered
+ */
+Connection.prototype.$ready = function() {
+  if (!this.$$configured) {
+    throw new Error(
+      'You must configure you connection first.' +
+      'Find additional details:' +
+      ' https://developers.goinstant.com/v1/GoAngular/connection.html');
+  }
+
+  return this.$$connection;
+};
+
+function format(provider) {
+  if (!provider) {
+    return null;
+  }
+
+  provider = provider.toLowerCase();
+
+  if (provider === 'salesforce') {
+    return 'forcedotcom';
+  }
+
+  return provider;
+}
+
+},{"lodash":20}],3:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
  *
- * @param {String} curr
- * @param {String} path
- * @return {String}
- * @api private
+ * This file contains the Connection factory, responsible for the connection
+ * singleton
  */
 
-require.normalize = function(curr, path) {
-  var segs = [];
+'use strict';
 
-  if ('.' != path.charAt(0)) return path;
+var Connection = require('./connection');
+var connection;
 
-  curr = curr.split('/');
-  path = path.split('/');
+module.exports = function connectionFactory() {
+  connection = connection || new Connection();
 
-  for (var i = 0; i < path.length; ++i) {
-    if ('..' == path[i]) {
-      curr.pop();
-    } else if ('.' != path[i] && '' != path[i]) {
-      segs.push(path[i]);
+  return connection;
+};
+
+},{"./connection":2}],4:[function(require,module,exports){
+/* jshint browser:true, bitwise: false */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Key factory, responsible for validating options and
+ * creating a new instance of the KeyModel.
+ */
+
+'use strict';
+
+var KeyModel = require('./key_model');
+var Args = require('args-js');
+var _ = require('lodash');
+
+module.exports = keyFactory;
+
+/**
+ * keyFactory
+ * @public
+ * @param {Object} $keySync - Responsible for synchronizing an Angular model,
+ * with an angular key.
+ * @param {Object} $conn - GoInstant connection service
+ * @returns {Function} option validation & instance creation
+ */
+function keyFactory($keySync, $conn) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function $key() {
+    var a = new Args([
+      { key: Args.OBJECT | Args.STRING | Args.Required },
+      { room: Args.STRING | Args.Optional }
+    ], arguments);
+
+    var key = (_.isObject(a.key)) ? a.key : $conn.$key(a.key, a.room);
+    var sync = $keySync(key);
+
+    return new KeyModel($conn, key, sync, $key);
+  };
+}
+
+},{"./key_model":6,"args-js":18,"lodash":20}],5:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the key filter, used to convert a collection of models
+ * into an array of models.
+ */
+
+'use strict';
+
+var _ = require('lodash');
+
+/**
+ * Converts the model from an object to an array. Orders the result of a goQuery
+ * given the $$index on the model.
+ * @public
+ * @returns {function} The goangular filter function
+ */
+module.exports = function keyFilter() {
+  var mPrimToObj = memoize(primToObj);
+
+  return function(model, enabled) {
+    enabled = (_.isBoolean(enabled)) ? enabled : true; // Default: true
+
+    if (!model || !_.isObject(model) || _.isArray(model) || !enabled) {
+      return model;
     }
-  }
 
-  return curr.concat(segs).join('/');
-};
+    var output = [];
+    var data = null;
 
-/**
- * Register module at `path` with callback `definition`.
- *
- * @param {String} path
- * @param {Function} definition
- * @api private
- */
+    if (!_.has(model, '$$index')) {
+      data = _.keys(model);
 
-require.register = function(path, definition) {
-  require.modules[path] = definition;
-};
+    } else if (_.has(model, '$omit') && model.$$index.length === 0) {
+      data = _.keys(model.$omit());
 
-/**
- * Alias a module definition.
- *
- * @param {String} from
- * @param {String} to
- * @api private
- */
-
-require.alias = function(from, to) {
-  if (!require.modules.hasOwnProperty(from)) {
-    throw new Error('Failed to alias "' + from + '", it does not exist');
-  }
-  require.aliases[to] = from;
-};
-
-/**
- * Return a require function relative to the `parent` path.
- *
- * @param {String} parent
- * @return {Function}
- * @api private
- */
-
-require.relative = function(parent) {
-  var p = require.normalize(parent, '..');
-
-  /**
-   * lastIndexOf helper.
-   */
-
-  function lastIndexOf(arr, obj) {
-    var i = arr.length;
-    while (i--) {
-      if (arr[i] === obj) return i;
+    } else {
+      data = model.$$index;
     }
-    return -1;
-  }
 
-  /**
-   * The relative require() itself.
-   */
+    _.each(data, function(key) {
+      var value = model[key];
 
-  function localRequire(path) {
-    var resolved = localRequire.resolve(path);
-    return require(resolved, parent, path);
-  }
+      if (!_.isObject(value)) {
+        value = mPrimToObj(key, value);
 
-  /**
-   * Resolve relative to the parent.
-   */
+      } else {
+        value.$name = key;
+      }
 
-  localRequire.resolve = function(path) {
-    var c = path.charAt(0);
-    if ('/' == c) return path.slice(1);
-    if ('.' == c) return require.normalize(p, path);
+      output.push(value);
+    });
 
-    // resolve deps by returning
-    // the dep in the nearest "deps"
-    // directory
-    var segs = parent.split('/');
-    var i = lastIndexOf(segs, 'deps') + 1;
-    if (!i) i = 0;
-    path = segs.slice(0, i + 1).join('/') + '/deps/' + path;
-    return path;
+    return output;
+  };
+};
+
+/**
+ * Creates a new model for primitives to hold the key $name and $value.
+ * @private
+ * @returns {object} Model for primitives
+ */
+function primToObj(name, value) {
+  return {
+    $value: value,
+    $name: name
+  };
+}
+
+/**
+ * Memoizes a function and uses both the key name and value to cache results.
+ * @private
+ * @returns {function} A memoize-wrapped function.
+ */
+function memoize(func) {
+  var memoized = function() {
+    var cache = memoized.cache;
+
+    var name = arguments[0];
+    var value = arguments[1];
+
+    cache[name] = cache[name] || {};
+
+    if (!_.isUndefined(cache[name][value])) {
+      return cache[name][value];
+    }
+
+    cache[name][value] = func.call(null, name, value);
+
+    return cache[name][value];
   };
 
-  /**
-   * Check if module is defined at `path`.
-   */
+  memoized.cache = {};
 
-  localRequire.exists = function(path) {
-    return require.modules.hasOwnProperty(localRequire.resolve(path));
-  };
+  return memoized;
+}
 
-  return localRequire;
-};
-require.register("component-indexof/index.js", function(exports, require, module){
-module.exports = function(arr, obj){
-  if (arr.indexOf) return arr.indexOf(obj);
-  for (var i = 0; i < arr.length; ++i) {
-    if (arr[i] === obj) return i;
-  }
-  return -1;
-};
-});
-require.register("component-emitter/index.js", function(exports, require, module){
+},{"lodash":20}],6:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
 
 /**
- * Module dependencies.
+ * @fileOverview
+ *
+ * This file contains the KeyModel class, an Angular friendly key wrapper
  */
 
-var index = require('indexof');
+'use strict';
+
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var Model = require('./model');
+
+module.exports = KeyModel;
+
+var KEY_EVENTS = ['set', 'add', 'remove'];
+
+/**
+ * @public
+ * @constructor
+ * @class
+ * @extends Model
+ */
+function KeyModel() {
+  Model.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$set',
+    '$add',
+    '$remove',
+    '$on',
+    '$off'
+  ]);
+}
+
+inheritPrototype(KeyModel, Model);
+
+/**
+ * Give the current key a new value
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$set = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.set(value, opts);
+  });
+};
+
+/**
+ * Add a generated id with a
+ * @public
+ * @param {*} value - New value of key
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$add = function(value, opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.add(value, opts);
+  });
+};
+
+/**
+ * Remove this key
+ * @public
+ * @returns {Object} promise
+ */
+KeyModel.prototype.$remove = function(opts) {
+  opts = opts || {};
+
+  var self = this;
+  return this.$$conn.$ready().then(function() {
+    return self.$$key.remove(opts);
+  });
+};
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ * @extends Model#$on
+ */
+KeyModel.prototype.$on = function(eventName, opts, listener) {
+  if (!_.contains(KEY_EVENTS, eventName)) {
+    return Model.prototype.$on.call(this, eventName, opts || listener);
+  }
+
+  this.$$key.on(eventName, opts, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ * @extends Model#$off
+ */
+KeyModel.prototype.$off = function(eventName, opts, listener) {
+  if (!_.contains(KEY_EVENTS, eventName)) {
+    return Model.prototype.$on.call(this, eventName, opts || listener);
+  }
+
+  this.$$key.off(eventName, opts, listener);
+};
+
+},{"./model":9,"./util/inherit":16,"lodash":20}],7:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the KeySync class, used to create a binding between
+ * a model on $scope and a GoInstant key
+ */
+
+'use strict';
+
+var _ = require('lodash');
+var normalize = require('./util/normalize');
+
+module.exports = KeySync;
+
+/**
+ * The KeySync class is responsible for synchronizing the state of a local model
+ * with that of a GoInstant key.
+ *
+ * @constructor
+ * @param {Object} $parse - Angular parse object
+ * @param {Object} $timeout - Angular timeout object
+ * @param {Object} key - Key unique to the controller scope
+ */
+function KeySync($parse, $timeout, key) {
+  _.bindAll(this, [
+    '$initialize',
+    '$$handleUpdate',
+    '$$handleRemove'
+  ]);
+
+  _.extend(this, {
+    $parse: $parse,
+    $timeout: $timeout,
+    $$key: key,
+    $$model: null,
+    $$registry: {}
+  });
+}
+
+/**
+ * Creates an association between a local object and a key in goinstant by
+ * fetching an existing value and monitoring the key.
+ * @param {Object} model - local object
+ */
+KeySync.prototype.$initialize = function(model) {
+  var self = this;
+
+  this.$$model = model;
+  this.$$model.$$key.get(function(err, value) {
+    if (err) {
+      return self.$$model.$$emitter.emit('error', err);
+    }
+
+    self.$$registry = {
+      set: self.$$handleUpdate,
+      add: self.$$handleUpdate,
+      remove: self.$$handleRemove
+    };
+
+    _.each(self.$$registry, function(fn, event) {
+      self.$$key.on(event, {
+        local: true,
+        bubble: true,
+        listener: fn
+      });
+    });
+
+    if (!_.isObject(value)) {
+      value = { $value: value };
+    }
+
+    self.$timeout(function() {
+      _.merge(self.$$model, value);
+      self.$$model.$$emitter.emit('ready');
+    });
+  });
+};
+
+/**
+ * When the value of the key has changed, we update our local model object
+ * @private
+ * @param {*} value - New key value
+ * @param {Object} context - Information related to the key being set
+ */
+KeySync.prototype.$$handleUpdate = function(value, context) {
+  var self = this;
+  var targetKey = (context.command ==='ADD') ? context.addedKey : context.key;
+
+  if (!_.isObject(value) && targetKey === context.currentKey) {
+    return self.$timeout(function() {
+      self.$$model.$value = value;
+
+      _.each(self.$$model, function(value, key, model) {
+        if (_.first(key) !== '$') {
+          delete model[key];
+        }
+      });
+    });
+  }
+
+  value = normalize(_.cloneDeep(value), context);
+
+  if (context.command === 'SET' && targetKey === context.currentKey) {
+    self.$timeout(function() {
+      _.each(self.$$model, function(value, key, model) {
+        if (_.first(key) !== '$') {
+          delete model[key];
+        }
+      });
+    });
+  }
+
+  if (context.command === 'SET' && targetKey !== context.currentKey) {
+    // Determine the relative path between the key we are listening too and the
+    // origin of the event.
+    var toPath = context.key.replace(context.currentKey, ''); // resolve path
+    toPath = toPath.replace(/^\/|\/$/g, ''); // trim trailing and starting slash
+
+    var sections = toPath.split('/');
+    var target = this.$$model;
+
+    // Loop over all the keys we need to navigate and traverse down until
+    // we're at the parent of the section being removed.
+    var ptr = [target]; // references to parts of the cache object
+    var parentIndex = sections.length - 1;
+
+    for (var i = 0; i < parentIndex; i++) {
+      target = target[sections[i]];
+
+      ptr.push(target);
+    }
+
+    self.$timeout(function() {
+      delete target[sections[parentIndex]];
+    });
+
+    // Now that we've removed the root, we need to crawl back up the tree
+    // and collapse each node that no longer has any leaf-nodes.
+    self.$timeout(function() {
+      for (var section, j = parentIndex - 1; j >= 0; j--) {
+        section = sections[j];
+
+        if (_.size(ptr[j][section]) === 0) {
+            delete ptr[j][section];
+        }
+      }
+    });
+  }
+
+  self.$timeout(function() {
+    _.merge(self.$$model, value);
+    delete self.$$model.$value;
+  });
+};
+
+/**
+ * When a key or one of it's children is destroyed we persist locally
+ * @private
+ * @param {*} value - New key value
+ * @param {Object} context - Information related to the key being set
+ */
+KeySync.prototype.$$handleRemove = function(value, context) {
+  var self = this;
+
+  if (context.currentKey === context.key) {
+
+    self.$timeout(function() {
+      if (self.$$model.$value) {
+        delete self.$$model.$value;
+        return;
+      }
+
+      _.each(self.$$model, function(value, key, model) {
+        if (_.first(key) !== '$') {
+          delete model[key];
+        }
+      });
+    });
+
+    _.each(self.$$registry, function (fn, event) {
+      self.$$key.off(event, fn);
+    });
+
+    return;
+  }
+
+  // Determine the relative path between the key we are listening too and the
+  // origin of the event.
+  var toPath = context.key.replace(context.currentKey, ''); // resolve path
+  toPath = toPath.replace(/^\/|\/$/g, ''); // trim trailing and starting slash
+
+  var sections = toPath.split('/');
+  var target = this.$$model;
+
+  // Loop over all the keys we need to navigate and traverse down until
+  // we're at the parent of the section being removed.
+  var ptr = [target]; // references to parts of the cache object
+  var parentIndex = sections.length - 1;
+
+  for (var i = 0; i < parentIndex; i++) {
+    target = target[sections[i]];
+
+    ptr.push(target);
+  }
+
+  self.$timeout(function() {
+    delete target[sections[parentIndex]];
+  });
+
+  // Now that we've removed the root, we need to crawl back up the tree
+  // and collapse each node that no longer has any leaf-nodes.
+  self.$timeout(function() {
+    for (var section, j = parentIndex - 1; j >= 0; j--) {
+      section = sections[j];
+
+      if (_.size(ptr[j][section]) === 0) {
+          delete ptr[j][section];
+      }
+    }
+  });
+};
+
+},{"./util/normalize":17,"lodash":20}],8:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the keySync factory, used to create a new instance of
+ * KeySync
+ */
+
+'use strict';
+
+var KeySync = require('./key_sync');
+
+module.exports = keySyncFactory;
+
+/**
+ * @param {Object} $parse - Angular parse object
+ * @param {Object} $timeout - Angular timeout object
+ * @returns {Function} KeySync factory
+ */
+function keySyncFactory($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function(key) {
+    return new KeySync($parse, $timeout, key);
+  };
+}
+
+},{"./key_sync":7}],9:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Model class, an Angular friendly base key wrapper
+ */
+
+'use strict';
+
+var _ = require('lodash');
+var Emitter = require('emitter-component');
+
+module.exports = Model;
+
+var LOCAL_EVENTS = ['ready', 'error'];
+
+/**
+ * Instantiated by a factory or $key method the constructor accepts a key,
+ * which it extends with convenience methods.
+ *
+ * @public
+ * @constructor
+ * @class
+ * @param {Object} $sync - Must implement synchronization interface
+ * @param {Object} $conn - GoInstant connection service
+ * @param {Object|String} key - GoInstant Key or string key name
+ * @param {function} factory - a factory for creating new models.
+ */
+function Model($conn, key, $sync, factory) {
+  _.bindAll(this, [
+    '$sync',
+    '$key',
+    '$omit',
+    '$on',
+    '$off'
+  ]);
+
+  _.extend(this, {
+    $$factory: factory,
+    $$sync: $sync,
+    $$conn: $conn,
+    $$key: key,
+    $$emitter: new Emitter(),
+    $$index: []
+  });
+}
+
+/**
+ * Primes our model, fetching the current key value and monitoring it for
+ * changes.
+ */
+Model.prototype.$sync = function() {
+  var self = this;
+
+  var connected = self.$$conn.$ready();
+
+  connected.then(function() {
+    self.$$sync.$initialize(self);
+  });
+
+  connected.fail(function(err) {
+    self.$$emitter.emit('error', err);
+  });
+
+  return self;
+};
+
+/**
+ * Create and return a new instance of Model, with a relative key.
+ * @public
+ * @param {String} keyName - Key name
+ */
+Model.prototype.$key = function(keyName) {
+  var key = this.$$key.key(keyName);
+
+  return this.$$factory(key);
+};
+
+/**
+ * Returns a new object that does not contain prefixed methods
+ * @public
+ * @returns {Object} model
+ */
+Model.prototype.$omit = function() {
+  return _.omit(this, function(value, key){
+    return _.first(key) === '$' || key === 'constructor';
+  });
+};
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ */
+Model.prototype.$on = function(eventName, listener) {
+  if (!_.contains(LOCAL_EVENTS, eventName)) {
+    throw new Error('Invalid event name: ' + eventName);
+  }
+
+  this.$$emitter.on(eventName, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ */
+Model.prototype.$off = function(eventName, listener) {
+  if (!_.contains(LOCAL_EVENTS, eventName)) {
+    throw new Error('Invalid event name: ' + eventName);
+  }
+
+  this.$$emitter.off(eventName, listener);
+};
+
+},{"emitter-component":19,"lodash":20}],10:[function(require,module,exports){
+/* jshint browser:true, bitwise: false */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the Query Factory, responsible for creating and
+ * returning instances of the GoAngular Query Model.
+ */
+
+'use strict';
+
+var KeyModel = require('./key_model');
+var Args = require('args-js');
+var _ = require('lodash');
+
+/**
+ * queryFactory
+ * @public
+ * @param {Object} $querySync - Responsible for synchronizing query model
+ * @param {Object} $conn - GoInstant connection
+ * @returns {Function} option validation & instance creation
+ */
+module.exports = function queryFactory($querySync, $goKey, $conn) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function $query() {
+    var a = new Args([
+      { key: Args.OBJECT | Args.STRING | Args.Required },
+      { room: Args.STRING | Args.Optional },
+      { expr: Args.OBJECT | Args.Optional, _default: {} },
+      { options: Args.OBJECT | Args.Required }
+    ], arguments);
+
+    var key = _.isObject(a.key) ? a.key : $conn.$key(a.key, a.room);
+    var query = key.query(a.expr || {}, a.options);
+    var sync = $querySync(query);
+
+    return new KeyModel($conn, key, sync, $goKey);
+  };
+};
+
+},{"./key_model":6,"args-js":18,"lodash":20}],11:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the QuerySync class, used to create a binding between
+ * a query model on $scope and a GoInstant query
+ */
+
+'use strict';
+
+var _ = require('lodash');
+
+module.exports = function querySync($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} query - GoInstant Query object
+   */
+  return function(query) {
+    return new QuerySync($parse, $timeout, query);
+  };
+};
+
+/**
+ * The Sync class is responsible for synchronizing the state of a local model,
+ * with that of a GoInstant key.
+ *
+ * @constructor
+ * @param {Object} $parse - Angular parse object
+ * @param {Object} $timeout - Angular timeout object
+ * @param {Object} query - GoInstant query object
+ */
+function QuerySync($parse, $timeout, query) {
+  _.bindAll(this, [
+    '$initialize',
+    '$$handleUpdate',
+    '$$handleRemove'
+  ]);
+
+  _.extend(this, {
+    $parse: $parse,
+    $timeout: $timeout,
+    $$query: query,
+    $$model: null,
+    $$registry: {}
+  });
+}
+
+/**
+ * Creates an association between a local object and a query by
+ * fetching a result set and monitoring the query.
+ * @param {Object} model - local object
+ */
+QuerySync.prototype.$initialize = function(model) {
+  this.$$model = model;
+  var self = this;
+
+  var index = self.$$model.$$index;
+
+  self.$$query.execute(function(err, results) {
+    if (err) {
+      return self.$$model.$$emitter.emit('error', err);
+    }
+
+    self.$$registry = {
+      update: self.$$handleUpdate,
+      add: self.$$handleUpdate,
+      remove: self.$$handleRemove
+    };
+
+    _.each(self.$$registry, function(fn, event) {
+      self.$$query.on(event, fn);
+    });
+
+    self.$timeout(function() {
+      _.map(results, function(result) {
+        index.push(result.name);
+        self.$$model[result.name] = result.value;
+      });
+
+      self.$$model.$$emitter.emit('ready');
+    });
+  });
+};
+
+/**
+ * When the query result set changes, update our local model object
+ * @private
+ * @param {*} result - new result set
+ * @param {Object} context - Information related to the key being set
+ */
+QuerySync.prototype.$$handleUpdate = function(result, context) {
+  var self = this;
+
+  var index = self.$$model.$$index;
+
+  // Update the index array with the new position of this key
+  var currentIndex = _.indexOf(index, result.name);
+
+  if (currentIndex !== -1) {
+    _(index).splice(currentIndex, 1);
+  }
+
+  _(index).splice(context.position.current, 0, result.name);
+
+  // Update the value of the model.
+  // The index update above will NOT trigger any changes on scope.
+  // Removing this will cause position to not be updated.
+  self.$timeout(function() {
+    self.$$model[result.name] = result.value;
+  });
+};
+
+/**
+ * When an item is removed from the result set, update the model
+ * @private
+ * @param {*} result - new result set
+ * @param {Object} context - information related to the key being set
+ */
+QuerySync.prototype.$$handleRemove = function(result, context) {
+  this.$$model.$$index.splice(context.position.previous, 1);
+
+  var self = this;
+  this.$timeout(function() {
+    delete self.$$model[result.name];
+  });
+};
+
+},{"lodash":20}],12:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the users factory, responsible for validating options and
+ * creating a new instance of the UsersModel.
+ */
+
+'use strict';
+
+var UsersModel = require('./users_model');
+var Args = require('args-js');
+
+/**
+ * usersFactory
+ * @public
+ * @param {Object} keySync Responsible for synchronizing an Angular model,
+ * with an angular key.
+ * @param {Function} goKey Factory function for creating a new instance of the
+ *                         KeyModel
+ * @param {Object} conn GoInstant connection service
+ * @param {Function} goSelf Factory function for creating a new instance of the
+ *                   SelfModel
+ * @returns {Function} option validation & instance creation
+ */
+module.exports = function usersFactory($usersSync, $goKey, $conn, $q) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function $key() {
+    var a = new Args([
+      { room: Args.STRING | Args.Optional }
+    ], arguments);
+
+    var key = $conn.$key('.users', a.room || 'lobby');
+    var sync = $usersSync(key);
+
+    return new UsersModel($conn, key, sync, $goKey, $q);
+  };
+};
+
+},{"./users_model":13,"args-js":18}],13:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the UsersModel class, an Angular friendly .users key
+ * wrapper
+ */
+
+'use strict';
+
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var Model = require('./model');
+var KeyModel = require('./key_model');
+
+module.exports = UsersModel;
+
+var ROOM_EVENTS = ['join', 'leave'];
+var SELF = 'self';
+
+/**
+ * @public
+ * @constructor
+ * @class
+ * @extends Model
+ */
+function UsersModel() {
+  Model.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$getUser',
+    '$on',
+    '$off'
+  ]);
+
+  _.extend(this, {
+    $local: null,
+    $$q: arguments[4]
+  });
+}
+
+inheritPrototype(UsersModel, Model);
+
+/**
+ * Give the current key a new value
+ * @public
+ * @param {Boolean} sync - Default true, automatically syncs when called
+ * @returns {Object} promise
+ */
+UsersModel.prototype.$self = function(sync) {
+  var self = this;
+
+  sync = _.isBoolean(sync) ? sync : true;
+
+  var defer = this.$$q.defer();
+
+  this.$$conn.$ready().then(function() {
+    var key = self.$$key.room().self();
+
+    self.$$sync.$timeout(function() {
+      self.$local = self.$$factory(key);
+
+      if (sync) {
+        self.$local.$sync();
+        self.$local.$on('ready', function() {
+          defer.resolve(self.$local);
+        });
+
+      } else {
+        defer.resolve(self.$local);
+      }
+    });
+  });
+
+  return defer.promise;
+};
+
+/**
+ * Create and return a new instance of Model, with a relative key.
+ * @public
+ * @param {String} keyName - Key name
+ */
+UsersModel.prototype.$getUser = KeyModel.prototype.$key;
+
+/**
+ * Bind a listener to events on this key
+ * @public
+ * @extends Model#on
+ */
+UsersModel.prototype.$on = function(eventName, opts, listener) {
+  if (eventName === SELF) {
+    return this.$$emitter.on(eventName, opts || listener);
+  }
+
+  if (!_.contains(ROOM_EVENTS, eventName)) {
+    if (!_.isFunction(opts)) {
+      _.extend(opts, { bubble: true });
+    }
+
+    return KeyModel.prototype.$on.call(this, eventName, opts, listener);
+  }
+
+  this.$$key.room().on(eventName, opts, listener);
+};
+
+/**
+ * Remove a listener on this key
+ * @public
+ * @extends Model#off
+ */
+UsersModel.prototype.$off = function(eventName, opts, listener) {
+  if (!_.contains(ROOM_EVENTS, eventName)) {
+    if (!_.isFunction(opts)) {
+      _.extend(opts, { bubble: true });
+    }
+
+    return KeyModel.prototype.$off.call(this, eventName, opts, listener);
+  }
+
+  this.$$key.room().off(eventName, opts, listener);
+};
+
+},{"./key_model":6,"./model":9,"./util/inherit":16,"lodash":20}],14:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the UsersSync class, used to create a binding between
+ * a model on $scope and the GoInstant .users key
+ */
+
+'use strict';
+
+/* @todo slowly phase out external dependencies */
+var _ = require('lodash');
+var inheritPrototype = require('./util/inherit');
+var KeySync = require('./key_sync');
+
+module.exports = UsersSync;
+
+/**
+ * The UsersSync class is responsible for synchronizing the state of a local
+ * model with that of a GoInstant .users key.
+ *
+ * @constructor
+ * @extends KeySync
+ */
+function UsersSync() {
+  KeySync.apply(this, arguments);
+
+  _.bindAll(this, [
+    '$initialize',
+    '$$handleJoin',
+    '$$handleLeave'
+  ]);
+
+  this.$$roomRegistry = {};
+}
+
+inheritPrototype(UsersSync, KeySync);
+
+/**
+ * Creates an association between a local object and a .users key in GoInstant
+ * by monitoring when a user joins and leaves the room.
+ * @param {Object} model - local object
+ * @extends KeySync#$initialize
+ */
+UsersSync.prototype.$initialize = function(model) {
+  _.extend(this.$$roomRegistry, {
+    join: this.$$handleJoin,
+    leave: this.$$handleLeave
+  });
+
+  var room = this.$$key.room();
+
+  _.each(this.$$roomRegistry, function(fn, event) {
+    room.on(event, { local: true }, fn);
+  });
+
+  KeySync.prototype.$initialize.call(this, model);
+};
+
+/**
+ * Handles adding a new user to the model when they join the room
+ * @param {Object} user A GoInstant userObject
+ */
+UsersSync.prototype.$$handleJoin = function(user) {
+  var self = this;
+
+  this.$timeout(function() {
+    self.$$model[user.id] = user;
+    self.$$model.$$emitter.emit('join', user);
+  });
+};
+
+/**
+ * Handles removing a new user from the model when they leave the room
+ * @param {Object} user A GoInstant userObject
+ */
+UsersSync.prototype.$$handleLeave = function(user) {
+  var self = this;
+
+  this.$timeout(function() {
+    delete self.$$model[user.id];
+    self.$$model.$$emitter.emit('leave', user);
+  });
+};
+
+},{"./key_sync":7,"./util/inherit":16,"lodash":20}],15:[function(require,module,exports){
+/* jshint browser:true */
+/* global require, module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the usersSync factory, used to create a new instance of
+ * UsersSync.
+ */
+
+'use strict';
+
+var UsersSync = require('./users_sync');
+
+module.exports = usersSyncFactory;
+
+function usersSyncFactory($parse, $timeout) {
+
+  /**
+   * @public
+   * @param {Object} key - GoInstant key
+   */
+  return function(key) {
+    return new UsersSync($parse, $timeout, key);
+  };
+}
+
+},{"./users_sync":14}],16:[function(require,module,exports){
+/* jshint browser:true */
+/* global module, require */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the inheritPrototype function, responsible for inheriting
+ * a SuperClass's prototype into a SubClass.
+ */
+
+'use strict';
+
+var _ = require('lodash');
+
+module.exports = inheritPrototype;
+
+var createObject = Object.create;
+
+if (!_.isFunction(createObject)) {
+  createObject = function(obj) {
+    function F() {}
+
+    F.prototype = obj;
+    return new F();
+  };
+}
+
+function inheritPrototype(SubClass, SuperClass) {
+  var superCopy = createObject(SuperClass.prototype);
+  superCopy.constructor = SubClass;
+
+  SubClass.prototype = superCopy;
+}
+
+
+},{"lodash":20}],17:[function(require,module,exports){
+/* jshint browser:true */
+/* global module */
+
+/**
+ * @fileOverview
+ *
+ * This file contains the normalize function, responsible for preparing a remote
+ * object to be merged into it's local counterpart
+ */
+
+'use strict';
+
+/**
+ * Normalizes the data returned from a event handler to get around the bug that
+ * the handler does not set the full mutated object it just returns the
+ * immediate value.
+ *
+ * Therefore, rebuild the object so it can cleanly be merged!
+ *
+ * @param {*} value the value returned to the handler
+ * @param {Object} context the context returned to the handler
+ */
+module.exports = function normalize(value, context) {
+
+  if (!context.currentKey) {
+    throw new Error('An invalid context was provided during normalization.');
+  }
+
+  // Build up the value until the key and the curPath are the same, then we've
+  // normalized the data properly.
+  var segment;
+  var newValue;
+  var i;
+
+  // Get the originating key path
+  var curPath = (context.addedKey) ? context.addedKey : context.key;
+
+  while (curPath !== context.currentKey) {
+
+    // Get the trailing path segment
+    i = curPath.lastIndexOf('/');
+    segment = curPath.slice(curPath.lastIndexOf('/'));
+    segment = segment.replace('/','');
+
+    newValue = {};
+    newValue[segment] = value;
+    value = newValue;
+
+    curPath = curPath.slice(0, i);
+  }
+
+  return value;
+};
+
+},{}],18:[function(require,module,exports){
+/**
+The MIT License (MIT)
+
+Copyright (c) 2013-2014, OMG Life Ltd 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+var Args = (function() {
+
+	"use strict";
+
+	var _extractSchemeEl = function(rawSchemeEl) {
+		var schemeEl = {};
+		schemeEl.defValue = undefined;
+		schemeEl.typeValue = undefined;
+		schemeEl.customCheck = undefined;
+		for (var name in rawSchemeEl) {
+			if (!rawSchemeEl.hasOwnProperty(name)) continue;
+				if (name === "_default") {
+					schemeEl.defValue = rawSchemeEl[name];
+				} else if (name === "_type") {
+					schemeEl.typeValue = rawSchemeEl[name];
+				} else if (name === "_check") {
+					schemeEl.customCheck = rawSchemeEl[name];
+				} else {
+					schemeEl.sname = name;
+				}
+		}
+		schemeEl.sarg = rawSchemeEl[schemeEl.sname];
+		return schemeEl;
+	};
+
+	var _typeMatches = function(arg, schemeEl) {
+		var ok = false;
+		if ((schemeEl.sarg & Args.ANY) !== 0) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.STRING) !== 0 && typeof arg === "string") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.FUNCTION) !== 0 && typeof arg === "function") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.INT) !== 0 && (typeof arg === "number" && Math.floor(arg) === arg)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.FLOAT) !== 0 && typeof arg === "number") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.ARRAY) !== 0 && (arg instanceof Array)) {
+			ok = true;
+		}
+		else if (((schemeEl.sarg & Args.OBJECT) !== 0 || schemeEl.typeValue !== undefined) && (
+			typeof arg === "object" &&
+			(schemeEl.typeValue === undefined || (arg instanceof schemeEl.typeValue))
+		)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.ARRAY_BUFFER) !== 0 && arg.toString().match(/ArrayBuffer/)) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.DATE) !== 0 && arg instanceof Date) {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.BOOL) !== 0 && typeof arg === "boolean") {
+			ok = true;
+		}
+		else if ((schemeEl.sarg & Args.DOM_EL) !== 0 &&
+			(
+				(arg instanceof HTMLElement) ||
+				(window.$ !== undefined && arg instanceof window.$)
+			)
+		) {
+			ok = true;
+		}
+		if (schemeEl.customCheck !== undefined && typeof schemeEl.customCheck === "function") {
+			if (schemeEl.customCheck(arg)) {
+				ok = true;
+			} else {
+				ok = false;
+			}
+		}
+		return ok;
+	};
+
+	var _isTypeSpecified = function(schemeEl) {
+		return (schemeEl.sarg & (Args.ANY | Args.STRING | Args.FUNCTION | Args.INT | Args.FLOAT | Args.OBJECT | Args.ARRAY_BUFFER | Args.DATE | Args.BOOL | Args.DOM_EL | Args.ARRAY)) != 0 || schemeEl.typeValue !== undefined;
+	};
+
+	var _getTypeString = function(schemeEl) {
+		var sarg = schemeEl.sarg;
+		var typeValue = schemeEl.typeValue;
+		var customCheck = schemeEl.customCheck;
+
+		if ((sarg & Args.STRING) !== 0 ) {
+			return "String";
+		}
+		if ((sarg & Args.FUNCTION) !== 0 ) {
+			return "Function";
+		}
+		if ((sarg & Args.INT) !== 0 ) {
+			return "Int";
+		}
+		if ((sarg & Args.FLOAT) !== 0 ) {
+			return "Float";
+		}
+		if ((sarg & Args.ARRAY) !== 0 ) {
+			return "Array";
+		}
+		if ((sarg & Args.OBJECT) !== 0) {
+			if (typeValue !== undefined) {
+				return "Object (" + typeValue.toString() + ")";
+			} else {
+				return "Object";
+			}
+		}
+		if ((sarg & Args.ARRAY_BUFFER) !== 0 ) {
+			return "Arry Buffer";	
+		}
+		if ((sarg & Args.DATE) !== 0 ) {
+			return "Date";	
+		}
+		if ((sarg & Args.BOOL) !== 0 ) {
+			return "Bool";
+		}
+		if ((sarg & Args.DOM_EL) !== 0 ) {
+			return "DOM Element";
+		}
+		if (customCheck !== undefined) {
+			return "[Custom checker]";
+		}
+		return "unknown";
+	};
+
+	var _checkNamedArgs = function(namedArgs, scheme, returns) {
+		var foundOne = false;
+		for (var s = 0  ; s < scheme.length ; s++) {
+			var found = (function(schemeEl) {
+				var argFound = false;
+				for (var name in namedArgs) {
+					var namedArg = namedArgs[name];
+					if (name === schemeEl.sname) {
+						if (_typeMatches(namedArg, schemeEl)) {
+							returns[name] = namedArg;
+							argFound = true;
+							break;
+						}
+					}
+				}
+				return argFound;
+			})(_extractSchemeEl(scheme[s]));
+			if (found) { scheme.splice(s--, 1); }
+			foundOne |= found;
+		}
+		return foundOne;
+	};
+
+	var _schemesMatch = function(schemeA, schemeB) {
+		if (!schemeA || !schemeB) { return false; }
+		return (schemeA.sarg & ~(Args.Optional | Args.Required)) === (schemeB.sarg & ~(Args.Optional | Args.Required)) &&
+			   schemeA.typeValue === schemeB.typeValue;
+	};
+
+	var _isRequired = function(sarg) {
+		return !_isOptional(sarg);
+	};
+
+	var _isOptional = function(sarg) {
+		return (sarg & Args.Optional) !== 0;
+	};
+
+	var _reasonForFailure = function(schemeEl, a, arg) {
+		var err = ""
+		if (_isTypeSpecified(schemeEl)) {
+			err = "Argument " + a + " ("+schemeEl.sname+") should be type "+_getTypeString(schemeEl)+", but it was type " + (typeof arg) + " with value " + arg + ".";
+		} else if (schemeEl.customCheck !== undefined) {
+			var funcString = schemeEl.customCheck.toString();
+			if (funcString.length > 50) {
+				funcString = funcString.substr(0, 40) + "..." + funcString.substr(funcString.length-10);
+			}
+			err = "Argument " + a + " ("+schemeEl.sname+") does not pass the custom check ("+funcString+").";
+		} else {
+			err = "Argument " + a + " ("+schemeEl.sname+") has no valid type specified.";
+		}
+		return err;
+	};
+
+	/**
+	 * Last argument may be a named argument object. This is decided in a non-greedy way, if
+	 * there are any unmatched arguments after the normal process and the last argument is an
+	 * object it is inspected for matching names.
+	 *
+	 * If the last argument is a named argument object and it could potentially be matched to
+	 * a normal object in the schema the object is first used to try to match any remaining
+	 * required args (including the object that it would match against). Only if there are no
+	 * remaining required args or none of the remaining required args are matched will the
+	 * last object arg match against a normal schema object.
+	 *
+	 * Runs of objects with the same type are matched greedily but if a required object is
+	 * encountered in the schema after all objects of that type have been matched the previous
+	 * matches are shifted right to cover the new required arg. Shifts can only happen from
+	 * immediately preceding required args or optional args. If a previous required arg is
+	 * matched but an optional arg seprates the new required arg from the old one only the
+	 * optional arg in between can be shifted. The required arg and any preceding optional
+	 * args are not shifted.
+	 */
+	var Args = function(scheme, args) {
+		if (scheme === undefined) throw new Error("The scheme has not been passed.");
+		if (args === undefined) throw new Error("The arguments have not been passed.");
+
+		args = Array.prototype.slice.call(args,0);
+
+		var returns = {};
+		var err = undefined;
+
+		var runType = undefined;
+		var run = [];
+		var _addToRun = function(schemeEl) {
+			if (
+				!runType ||
+				!_schemesMatch(runType, schemeEl) ||
+				(_isRequired(runType.sarg) && _isOptional(schemeEl.sarg))
+			) {
+				run = [];
+			}
+			if (run.length > 0 || _isOptional(schemeEl.sarg)) {
+				runType = schemeEl;
+				run.push(schemeEl);
+			}
+		};
+		var _shiftRun = function(schemeEl, a, r) {
+			if (r === undefined) r = run.length-1;
+			if (r < 0) return;
+			var lastMatch = run[r];
+			var arg = returns[lastMatch.sname];
+			if (_typeMatches(arg, schemeEl)) {
+				returns[schemeEl.sname] = arg;
+				returns[lastMatch.sname] = lastMatch.defValue || undefined;
+				if ((lastMatch.sarg & Args.Optional) === 0) { // if the last in the run was not optional
+					_shiftRun(lastMatch, a, r-1);
+				}
+			} else {
+				return _reasonForFailure(schemeEl, arg, a);
+			}
+		};
+
+
+		var a, s;
+
+
+		// first let's extract any named args
+		if (typeof args[args.length-1] === "object") {
+			if (_checkNamedArgs(args[args.length-1], scheme, returns)) {
+				args.splice(args.length-1,1);
+			}
+		}
+		
+
+		for (a = 0, s = 0; s < scheme.length ; s++) {
+			a = (function(a,s) {
+
+				var arg = args[a];
+
+				// argument group
+				if (scheme[s] instanceof Array) {
+					if (arg === null || arg === undefined) {
+						err = "Argument " + a + " is null or undefined but it must be not null.";
+						return a;
+					} else {
+						var group = scheme[s];
+						var retName = undefined;
+						for (var g = 0 ; g < group.length ; g++) {
+							var schemeEl = _extractSchemeEl(group[g]);
+							if (_typeMatches(arg, schemeEl)) {
+								retName = schemeEl.sname;
+							}
+						}
+						if (retName === undefined) {
+							err = "Argument " + a + " should be one of: ";
+							for (var g = 0 ; g < group.length ; g++) {
+								var schemeEl = _extractSchemeEl(group[g]);
+								err += _getTypeString(schemeEl) + ", ";
+							}
+							err += "but it was type " + (typeof arg) + " with value " + arg + ".";
+							return a;
+						} else {
+							returns[retName] = arg;
+							return a+1;
+						}
+					}
+				} else {
+					var schemeEl = _extractSchemeEl(scheme[s]);
+
+					// optional arg
+					if ((schemeEl.sarg & Args.Optional) !== 0) {
+						// check if this arg matches the next schema slot
+						if ( arg === null || arg === undefined) {
+							if (schemeEl.defValue !== undefined)  {
+								returns[schemeEl.sname] = schemeEl.defValue;
+							} else {
+								returns[schemeEl.sname] = arg;
+							}
+							return a+1; // if the arg is null or undefined it will fill a slot, but may be replace by the default value
+						} else if (_typeMatches(arg, schemeEl)) {
+							returns[schemeEl.sname] = arg;
+							_addToRun(schemeEl);
+							return a+1;
+						} else if (schemeEl.defValue !== undefined)  {
+							returns[schemeEl.sname] = schemeEl.defValue;
+							return a;
+						}
+					}
+
+					// manadatory arg
+					else { //if ((schemeEl.sarg & Args.NotNull) !== 0) {
+						if (arg === null || arg === undefined) {
+							if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
+								err = _shiftRun(schemeEl, a);
+								if (err === "") {
+									_addToRun(schemeEl);
+								}
+								return a;
+							} else {
+								err = "Argument " + a + " ("+schemeEl.sname+") is null or undefined but it must be not null.";
+								return a;
+							}
+						}
+						else if (!_typeMatches(arg, schemeEl)) {
+							if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
+								err = _shiftRun(schemeEl, a);
+								if (err === "") {
+									_addToRun(schemeEl);
+									return a+1;
+								}
+							} else {
+								err = _reasonForFailure(schemeEl, arg, a);
+							}
+							return a;
+						} else {
+							returns[schemeEl.sname] = arg;
+							_addToRun(schemeEl);
+							return a+1;
+						}
+					}
+
+				}
+
+				return a;
+			})(a,s);
+			if (err) {
+				break;
+			}
+		}
+
+		if (err) {
+			throw new Error(err);
+		}
+
+		return returns;
+	};
+
+	Args.ANY	  = 0x1;
+	Args.STRING	  = 0x1 << 1;
+	Args.FUNCTION	  = 0x1 << 2;
+	Args.INT	  = 0x1 << 3;
+	Args.FLOAT	  = 0x1 << 4;
+	Args.ARRAY_BUFFER = 0x1 << 5;
+	Args.OBJECT	  = 0x1 << 6;
+	Args.DATE	  = 0x1 << 7;
+	Args.BOOL	  = 0x1 << 8;
+	Args.DOM_EL	  = 0x1 << 9;
+	Args.ARRAY	  = 0x1 << 10;
+
+
+	Args.Optional	  = 0x1 << 11;
+	Args.NotNull	  =
+	Args.Required	  = 0x1 << 12;
+
+	return Args;
+})();
+
+
+try {
+	module.exports = Args;
+} catch (e) {}
+
+},{}],19:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -253,7 +1915,8 @@ function mixin(obj) {
  * @api public
  */
 
-Emitter.prototype.on = function(event, fn){
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
   this._callbacks = this._callbacks || {};
   (this._callbacks[event] = this._callbacks[event] || [])
     .push(fn);
@@ -279,7 +1942,7 @@ Emitter.prototype.once = function(event, fn){
     fn.apply(this, arguments);
   }
 
-  fn._off = on;
+  on.fn = fn;
   this.on(event, on);
   return this;
 };
@@ -296,7 +1959,8 @@ Emitter.prototype.once = function(event, fn){
 
 Emitter.prototype.off =
 Emitter.prototype.removeListener =
-Emitter.prototype.removeAllListeners = function(event, fn){
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
   this._callbacks = this._callbacks || {};
 
   // all
@@ -316,8 +1980,14 @@ Emitter.prototype.removeAllListeners = function(event, fn){
   }
 
   // remove specific handler
-  var i = index(callbacks, fn._off || fn);
-  if (~i) callbacks.splice(i, 1);
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
   return this;
 };
 
@@ -369,973 +2039,12 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
-});
-require.register("caolan-async/lib/async.js", function(exports, require, module){
-/*global setImmediate: false, setTimeout: false, console: false */
-(function () {
-
-    var async = {};
-
-    // global on the server, window in the browser
-    var root, previous_async;
-
-    root = this;
-    if (root != null) {
-      previous_async = root.async;
-    }
-
-    async.noConflict = function () {
-        root.async = previous_async;
-        return async;
-    };
-
-    function only_once(fn) {
-        var called = false;
-        return function() {
-            if (called) throw new Error("Callback was already called.");
-            called = true;
-            fn.apply(root, arguments);
-        }
-    }
-
-    //// cross-browser compatiblity functions ////
-
-    var _each = function (arr, iterator) {
-        if (arr.forEach) {
-            return arr.forEach(iterator);
-        }
-        for (var i = 0; i < arr.length; i += 1) {
-            iterator(arr[i], i, arr);
-        }
-    };
-
-    var _map = function (arr, iterator) {
-        if (arr.map) {
-            return arr.map(iterator);
-        }
-        var results = [];
-        _each(arr, function (x, i, a) {
-            results.push(iterator(x, i, a));
-        });
-        return results;
-    };
-
-    var _reduce = function (arr, iterator, memo) {
-        if (arr.reduce) {
-            return arr.reduce(iterator, memo);
-        }
-        _each(arr, function (x, i, a) {
-            memo = iterator(memo, x, i, a);
-        });
-        return memo;
-    };
-
-    var _keys = function (obj) {
-        if (Object.keys) {
-            return Object.keys(obj);
-        }
-        var keys = [];
-        for (var k in obj) {
-            if (obj.hasOwnProperty(k)) {
-                keys.push(k);
-            }
-        }
-        return keys;
-    };
-
-    //// exported async module functions ////
-
-    //// nextTick implementation with browser-compatible fallback ////
-    if (typeof process === 'undefined' || !(process.nextTick)) {
-        if (typeof setImmediate === 'function') {
-            async.nextTick = function (fn) {
-                // not a direct alias for IE10 compatibility
-                setImmediate(fn);
-            };
-            async.setImmediate = async.nextTick;
-        }
-        else {
-            async.nextTick = function (fn) {
-                setTimeout(fn, 0);
-            };
-            async.setImmediate = async.nextTick;
-        }
-    }
-    else {
-        async.nextTick = process.nextTick;
-        if (typeof setImmediate !== 'undefined') {
-            async.setImmediate = setImmediate;
-        }
-        else {
-            async.setImmediate = async.nextTick;
-        }
-    }
-
-    async.each = function (arr, iterator, callback) {
-        callback = callback || function () {};
-        if (!arr.length) {
-            return callback();
-        }
-        var completed = 0;
-        _each(arr, function (x) {
-            iterator(x, only_once(function (err) {
-                if (err) {
-                    callback(err);
-                    callback = function () {};
-                }
-                else {
-                    completed += 1;
-                    if (completed >= arr.length) {
-                        callback(null);
-                    }
-                }
-            }));
-        });
-    };
-    async.forEach = async.each;
-
-    async.eachSeries = function (arr, iterator, callback) {
-        callback = callback || function () {};
-        if (!arr.length) {
-            return callback();
-        }
-        var completed = 0;
-        var iterate = function () {
-            iterator(arr[completed], function (err) {
-                if (err) {
-                    callback(err);
-                    callback = function () {};
-                }
-                else {
-                    completed += 1;
-                    if (completed >= arr.length) {
-                        callback(null);
-                    }
-                    else {
-                        iterate();
-                    }
-                }
-            });
-        };
-        iterate();
-    };
-    async.forEachSeries = async.eachSeries;
-
-    async.eachLimit = function (arr, limit, iterator, callback) {
-        var fn = _eachLimit(limit);
-        fn.apply(null, [arr, iterator, callback]);
-    };
-    async.forEachLimit = async.eachLimit;
-
-    var _eachLimit = function (limit) {
-
-        return function (arr, iterator, callback) {
-            callback = callback || function () {};
-            if (!arr.length || limit <= 0) {
-                return callback();
-            }
-            var completed = 0;
-            var started = 0;
-            var running = 0;
-
-            (function replenish () {
-                if (completed >= arr.length) {
-                    return callback();
-                }
-
-                while (running < limit && started < arr.length) {
-                    started += 1;
-                    running += 1;
-                    iterator(arr[started - 1], function (err) {
-                        if (err) {
-                            callback(err);
-                            callback = function () {};
-                        }
-                        else {
-                            completed += 1;
-                            running -= 1;
-                            if (completed >= arr.length) {
-                                callback();
-                            }
-                            else {
-                                replenish();
-                            }
-                        }
-                    });
-                }
-            })();
-        };
-    };
-
-
-    var doParallel = function (fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [async.each].concat(args));
-        };
-    };
-    var doParallelLimit = function(limit, fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [_eachLimit(limit)].concat(args));
-        };
-    };
-    var doSeries = function (fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [async.eachSeries].concat(args));
-        };
-    };
-
-
-    var _asyncMap = function (eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
-        });
-        eachfn(arr, function (x, callback) {
-            iterator(x.value, function (err, v) {
-                results[x.index] = v;
-                callback(err);
-            });
-        }, function (err) {
-            callback(err, results);
-        });
-    };
-    async.map = doParallel(_asyncMap);
-    async.mapSeries = doSeries(_asyncMap);
-    async.mapLimit = function (arr, limit, iterator, callback) {
-        return _mapLimit(limit)(arr, iterator, callback);
-    };
-
-    var _mapLimit = function(limit) {
-        return doParallelLimit(limit, _asyncMap);
-    };
-
-    // reduce only has a series version, as doing reduce in parallel won't
-    // work in many situations.
-    async.reduce = function (arr, memo, iterator, callback) {
-        async.eachSeries(arr, function (x, callback) {
-            iterator(memo, x, function (err, v) {
-                memo = v;
-                callback(err);
-            });
-        }, function (err) {
-            callback(err, memo);
-        });
-    };
-    // inject alias
-    async.inject = async.reduce;
-    // foldl alias
-    async.foldl = async.reduce;
-
-    async.reduceRight = function (arr, memo, iterator, callback) {
-        var reversed = _map(arr, function (x) {
-            return x;
-        }).reverse();
-        async.reduce(reversed, memo, iterator, callback);
-    };
-    // foldr alias
-    async.foldr = async.reduceRight;
-
-    var _filter = function (eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
-        });
-        eachfn(arr, function (x, callback) {
-            iterator(x.value, function (v) {
-                if (v) {
-                    results.push(x);
-                }
-                callback();
-            });
-        }, function (err) {
-            callback(_map(results.sort(function (a, b) {
-                return a.index - b.index;
-            }), function (x) {
-                return x.value;
-            }));
-        });
-    };
-    async.filter = doParallel(_filter);
-    async.filterSeries = doSeries(_filter);
-    // select alias
-    async.select = async.filter;
-    async.selectSeries = async.filterSeries;
-
-    var _reject = function (eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
-        });
-        eachfn(arr, function (x, callback) {
-            iterator(x.value, function (v) {
-                if (!v) {
-                    results.push(x);
-                }
-                callback();
-            });
-        }, function (err) {
-            callback(_map(results.sort(function (a, b) {
-                return a.index - b.index;
-            }), function (x) {
-                return x.value;
-            }));
-        });
-    };
-    async.reject = doParallel(_reject);
-    async.rejectSeries = doSeries(_reject);
-
-    var _detect = function (eachfn, arr, iterator, main_callback) {
-        eachfn(arr, function (x, callback) {
-            iterator(x, function (result) {
-                if (result) {
-                    main_callback(x);
-                    main_callback = function () {};
-                }
-                else {
-                    callback();
-                }
-            });
-        }, function (err) {
-            main_callback();
-        });
-    };
-    async.detect = doParallel(_detect);
-    async.detectSeries = doSeries(_detect);
-
-    async.some = function (arr, iterator, main_callback) {
-        async.each(arr, function (x, callback) {
-            iterator(x, function (v) {
-                if (v) {
-                    main_callback(true);
-                    main_callback = function () {};
-                }
-                callback();
-            });
-        }, function (err) {
-            main_callback(false);
-        });
-    };
-    // any alias
-    async.any = async.some;
-
-    async.every = function (arr, iterator, main_callback) {
-        async.each(arr, function (x, callback) {
-            iterator(x, function (v) {
-                if (!v) {
-                    main_callback(false);
-                    main_callback = function () {};
-                }
-                callback();
-            });
-        }, function (err) {
-            main_callback(true);
-        });
-    };
-    // all alias
-    async.all = async.every;
-
-    async.sortBy = function (arr, iterator, callback) {
-        async.map(arr, function (x, callback) {
-            iterator(x, function (err, criteria) {
-                if (err) {
-                    callback(err);
-                }
-                else {
-                    callback(null, {value: x, criteria: criteria});
-                }
-            });
-        }, function (err, results) {
-            if (err) {
-                return callback(err);
-            }
-            else {
-                var fn = function (left, right) {
-                    var a = left.criteria, b = right.criteria;
-                    return a < b ? -1 : a > b ? 1 : 0;
-                };
-                callback(null, _map(results.sort(fn), function (x) {
-                    return x.value;
-                }));
-            }
-        });
-    };
-
-    async.auto = function (tasks, callback) {
-        callback = callback || function () {};
-        var keys = _keys(tasks);
-        if (!keys.length) {
-            return callback(null);
-        }
-
-        var results = {};
-
-        var listeners = [];
-        var addListener = function (fn) {
-            listeners.unshift(fn);
-        };
-        var removeListener = function (fn) {
-            for (var i = 0; i < listeners.length; i += 1) {
-                if (listeners[i] === fn) {
-                    listeners.splice(i, 1);
-                    return;
-                }
-            }
-        };
-        var taskComplete = function () {
-            _each(listeners.slice(0), function (fn) {
-                fn();
-            });
-        };
-
-        addListener(function () {
-            if (_keys(results).length === keys.length) {
-                callback(null, results);
-                callback = function () {};
-            }
-        });
-
-        _each(keys, function (k) {
-            var task = (tasks[k] instanceof Function) ? [tasks[k]]: tasks[k];
-            var taskCallback = function (err) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                if (args.length <= 1) {
-                    args = args[0];
-                }
-                if (err) {
-                    var safeResults = {};
-                    _each(_keys(results), function(rkey) {
-                        safeResults[rkey] = results[rkey];
-                    });
-                    safeResults[k] = args;
-                    callback(err, safeResults);
-                    // stop subsequent errors hitting callback multiple times
-                    callback = function () {};
-                }
-                else {
-                    results[k] = args;
-                    async.setImmediate(taskComplete);
-                }
-            };
-            var requires = task.slice(0, Math.abs(task.length - 1)) || [];
-            var ready = function () {
-                return _reduce(requires, function (a, x) {
-                    return (a && results.hasOwnProperty(x));
-                }, true) && !results.hasOwnProperty(k);
-            };
-            if (ready()) {
-                task[task.length - 1](taskCallback, results);
-            }
-            else {
-                var listener = function () {
-                    if (ready()) {
-                        removeListener(listener);
-                        task[task.length - 1](taskCallback, results);
-                    }
-                };
-                addListener(listener);
-            }
-        });
-    };
-
-    async.waterfall = function (tasks, callback) {
-        callback = callback || function () {};
-        if (tasks.constructor !== Array) {
-          var err = new Error('First argument to waterfall must be an array of functions');
-          return callback(err);
-        }
-        if (!tasks.length) {
-            return callback();
-        }
-        var wrapIterator = function (iterator) {
-            return function (err) {
-                if (err) {
-                    callback.apply(null, arguments);
-                    callback = function () {};
-                }
-                else {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    var next = iterator.next();
-                    if (next) {
-                        args.push(wrapIterator(next));
-                    }
-                    else {
-                        args.push(callback);
-                    }
-                    async.setImmediate(function () {
-                        iterator.apply(null, args);
-                    });
-                }
-            };
-        };
-        wrapIterator(async.iterator(tasks))();
-    };
-
-    var _parallel = function(eachfn, tasks, callback) {
-        callback = callback || function () {};
-        if (tasks.constructor === Array) {
-            eachfn.map(tasks, function (fn, callback) {
-                if (fn) {
-                    fn(function (err) {
-                        var args = Array.prototype.slice.call(arguments, 1);
-                        if (args.length <= 1) {
-                            args = args[0];
-                        }
-                        callback.call(null, err, args);
-                    });
-                }
-            }, callback);
-        }
-        else {
-            var results = {};
-            eachfn.each(_keys(tasks), function (k, callback) {
-                tasks[k](function (err) {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    if (args.length <= 1) {
-                        args = args[0];
-                    }
-                    results[k] = args;
-                    callback(err);
-                });
-            }, function (err) {
-                callback(err, results);
-            });
-        }
-    };
-
-    async.parallel = function (tasks, callback) {
-        _parallel({ map: async.map, each: async.each }, tasks, callback);
-    };
-
-    async.parallelLimit = function(tasks, limit, callback) {
-        _parallel({ map: _mapLimit(limit), each: _eachLimit(limit) }, tasks, callback);
-    };
-
-    async.series = function (tasks, callback) {
-        callback = callback || function () {};
-        if (tasks.constructor === Array) {
-            async.mapSeries(tasks, function (fn, callback) {
-                if (fn) {
-                    fn(function (err) {
-                        var args = Array.prototype.slice.call(arguments, 1);
-                        if (args.length <= 1) {
-                            args = args[0];
-                        }
-                        callback.call(null, err, args);
-                    });
-                }
-            }, callback);
-        }
-        else {
-            var results = {};
-            async.eachSeries(_keys(tasks), function (k, callback) {
-                tasks[k](function (err) {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    if (args.length <= 1) {
-                        args = args[0];
-                    }
-                    results[k] = args;
-                    callback(err);
-                });
-            }, function (err) {
-                callback(err, results);
-            });
-        }
-    };
-
-    async.iterator = function (tasks) {
-        var makeCallback = function (index) {
-            var fn = function () {
-                if (tasks.length) {
-                    tasks[index].apply(null, arguments);
-                }
-                return fn.next();
-            };
-            fn.next = function () {
-                return (index < tasks.length - 1) ? makeCallback(index + 1): null;
-            };
-            return fn;
-        };
-        return makeCallback(0);
-    };
-
-    async.apply = function (fn) {
-        var args = Array.prototype.slice.call(arguments, 1);
-        return function () {
-            return fn.apply(
-                null, args.concat(Array.prototype.slice.call(arguments))
-            );
-        };
-    };
-
-    var _concat = function (eachfn, arr, fn, callback) {
-        var r = [];
-        eachfn(arr, function (x, cb) {
-            fn(x, function (err, y) {
-                r = r.concat(y || []);
-                cb(err);
-            });
-        }, function (err) {
-            callback(err, r);
-        });
-    };
-    async.concat = doParallel(_concat);
-    async.concatSeries = doSeries(_concat);
-
-    async.whilst = function (test, iterator, callback) {
-        if (test()) {
-            iterator(function (err) {
-                if (err) {
-                    return callback(err);
-                }
-                async.whilst(test, iterator, callback);
-            });
-        }
-        else {
-            callback();
-        }
-    };
-
-    async.doWhilst = function (iterator, test, callback) {
-        iterator(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            if (test()) {
-                async.doWhilst(iterator, test, callback);
-            }
-            else {
-                callback();
-            }
-        });
-    };
-
-    async.until = function (test, iterator, callback) {
-        if (!test()) {
-            iterator(function (err) {
-                if (err) {
-                    return callback(err);
-                }
-                async.until(test, iterator, callback);
-            });
-        }
-        else {
-            callback();
-        }
-    };
-
-    async.doUntil = function (iterator, test, callback) {
-        iterator(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            if (!test()) {
-                async.doUntil(iterator, test, callback);
-            }
-            else {
-                callback();
-            }
-        });
-    };
-
-    async.queue = function (worker, concurrency) {
-        if (concurrency === undefined) {
-            concurrency = 1;
-        }
-        function _insert(q, data, pos, callback) {
-          if(data.constructor !== Array) {
-              data = [data];
-          }
-          _each(data, function(task) {
-              var item = {
-                  data: task,
-                  callback: typeof callback === 'function' ? callback : null
-              };
-
-              if (pos) {
-                q.tasks.unshift(item);
-              } else {
-                q.tasks.push(item);
-              }
-
-              if (q.saturated && q.tasks.length === concurrency) {
-                  q.saturated();
-              }
-              async.setImmediate(q.process);
-          });
-        }
-
-        var workers = 0;
-        var q = {
-            tasks: [],
-            concurrency: concurrency,
-            saturated: null,
-            empty: null,
-            drain: null,
-            push: function (data, callback) {
-              _insert(q, data, false, callback);
-            },
-            unshift: function (data, callback) {
-              _insert(q, data, true, callback);
-            },
-            process: function () {
-                if (workers < q.concurrency && q.tasks.length) {
-                    var task = q.tasks.shift();
-                    if (q.empty && q.tasks.length === 0) {
-                        q.empty();
-                    }
-                    workers += 1;
-                    var next = function () {
-                        workers -= 1;
-                        if (task.callback) {
-                            task.callback.apply(task, arguments);
-                        }
-                        if (q.drain && q.tasks.length + workers === 0) {
-                            q.drain();
-                        }
-                        q.process();
-                    };
-                    var cb = only_once(next);
-                    worker(task.data, cb);
-                }
-            },
-            length: function () {
-                return q.tasks.length;
-            },
-            running: function () {
-                return workers;
-            }
-        };
-        return q;
-    };
-
-    async.cargo = function (worker, payload) {
-        var working     = false,
-            tasks       = [];
-
-        var cargo = {
-            tasks: tasks,
-            payload: payload,
-            saturated: null,
-            empty: null,
-            drain: null,
-            push: function (data, callback) {
-                if(data.constructor !== Array) {
-                    data = [data];
-                }
-                _each(data, function(task) {
-                    tasks.push({
-                        data: task,
-                        callback: typeof callback === 'function' ? callback : null
-                    });
-                    if (cargo.saturated && tasks.length === payload) {
-                        cargo.saturated();
-                    }
-                });
-                async.setImmediate(cargo.process);
-            },
-            process: function process() {
-                if (working) return;
-                if (tasks.length === 0) {
-                    if(cargo.drain) cargo.drain();
-                    return;
-                }
-
-                var ts = typeof payload === 'number'
-                            ? tasks.splice(0, payload)
-                            : tasks.splice(0);
-
-                var ds = _map(ts, function (task) {
-                    return task.data;
-                });
-
-                if(cargo.empty) cargo.empty();
-                working = true;
-                worker(ds, function () {
-                    working = false;
-
-                    var args = arguments;
-                    _each(ts, function (data) {
-                        if (data.callback) {
-                            data.callback.apply(null, args);
-                        }
-                    });
-
-                    process();
-                });
-            },
-            length: function () {
-                return tasks.length;
-            },
-            running: function () {
-                return working;
-            }
-        };
-        return cargo;
-    };
-
-    var _console_fn = function (name) {
-        return function (fn) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            fn.apply(null, args.concat([function (err) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                if (typeof console !== 'undefined') {
-                    if (err) {
-                        if (console.error) {
-                            console.error(err);
-                        }
-                    }
-                    else if (console[name]) {
-                        _each(args, function (x) {
-                            console[name](x);
-                        });
-                    }
-                }
-            }]));
-        };
-    };
-    async.log = _console_fn('log');
-    async.dir = _console_fn('dir');
-    /*async.info = _console_fn('info');
-    async.warn = _console_fn('warn');
-    async.error = _console_fn('error');*/
-
-    async.memoize = function (fn, hasher) {
-        var memo = {};
-        var queues = {};
-        hasher = hasher || function (x) {
-            return x;
-        };
-        var memoized = function () {
-            var args = Array.prototype.slice.call(arguments);
-            var callback = args.pop();
-            var key = hasher.apply(null, args);
-            if (key in memo) {
-                callback.apply(null, memo[key]);
-            }
-            else if (key in queues) {
-                queues[key].push(callback);
-            }
-            else {
-                queues[key] = [callback];
-                fn.apply(null, args.concat([function () {
-                    memo[key] = arguments;
-                    var q = queues[key];
-                    delete queues[key];
-                    for (var i = 0, l = q.length; i < l; i++) {
-                      q[i].apply(null, arguments);
-                    }
-                }]));
-            }
-        };
-        memoized.memo = memo;
-        memoized.unmemoized = fn;
-        return memoized;
-    };
-
-    async.unmemoize = function (fn) {
-      return function () {
-        return (fn.unmemoized || fn).apply(null, arguments);
-      };
-    };
-
-    async.times = function (count, iterator, callback) {
-        var counter = [];
-        for (var i = 0; i < count; i++) {
-            counter.push(i);
-        }
-        return async.map(counter, iterator, callback);
-    };
-
-    async.timesSeries = function (count, iterator, callback) {
-        var counter = [];
-        for (var i = 0; i < count; i++) {
-            counter.push(i);
-        }
-        return async.mapSeries(counter, iterator, callback);
-    };
-
-    async.compose = function (/* functions... */) {
-        var fns = Array.prototype.reverse.call(arguments);
-        return function () {
-            var that = this;
-            var args = Array.prototype.slice.call(arguments);
-            var callback = args.pop();
-            async.reduce(fns, args, function (newargs, fn, cb) {
-                fn.apply(that, newargs.concat([function () {
-                    var err = arguments[0];
-                    var nextargs = Array.prototype.slice.call(arguments, 1);
-                    cb(err, nextargs);
-                }]))
-            },
-            function (err, results) {
-                callback.apply(that, [err].concat(results));
-            });
-        };
-    };
-
-    var _applyEach = function (eachfn, fns /*args...*/) {
-        var go = function () {
-            var that = this;
-            var args = Array.prototype.slice.call(arguments);
-            var callback = args.pop();
-            return eachfn(fns, function (fn, cb) {
-                fn.apply(that, args.concat([cb]));
-            },
-            callback);
-        };
-        if (arguments.length > 2) {
-            var args = Array.prototype.slice.call(arguments, 2);
-            return go.apply(this, args);
-        }
-        else {
-            return go;
-        }
-    };
-    async.applyEach = doParallel(_applyEach);
-    async.applyEachSeries = doSeries(_applyEach);
-
-    async.forever = function (fn, callback) {
-        function next(err) {
-            if (err) {
-                if (callback) {
-                    return callback(err);
-                }
-                throw err;
-            }
-            fn(next);
-        }
-        next();
-    };
-
-    // AMD / RequireJS
-    if (typeof define !== 'undefined' && define.amd) {
-        define([], function () {
-            return async;
-        });
-    }
-    // Node.js
-    else if (typeof module !== 'undefined' && module.exports) {
-        module.exports = async;
-    }
-    // included directly via <script> tag
-    else {
-        root.async = async;
-    }
-
-}());
-
-});
-require.register("lodash-lodash/index.js", function(exports, require, module){
-module.exports = require('./dist/lodash.compat.js');
-});
-require.register("lodash-lodash/dist/lodash.compat.js", function(exports, require, module){
+},{}],20:[function(require,module,exports){
+(function (global){
 /**
  * @license
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
- * Build: `lodash -o ./dist/lodash.compat.js`
+ * Build: `lodash modern -o ./dist/lodash.js`
  * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
  * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -1352,9 +2061,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
 
   /** Used to generate unique IDs */
   var idCounter = 0;
-
-  /** Used internally to indicate various things */
-  var indicatorObject = {};
 
   /** Used to prefix keys to avoid issues with `__proto__` and properties on `Object.prototype` */
   var keyPrefix = +new Date + '';
@@ -1411,15 +2117,9 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
 
   /** Used to assign default `context` object properties */
   var contextProps = [
-    'Array', 'Boolean', 'Date', 'Error', 'Function', 'Math', 'Number', 'Object',
+    'Array', 'Boolean', 'Date', 'Function', 'Math', 'Number', 'Object',
     'RegExp', 'String', '_', 'attachEvent', 'clearTimeout', 'isFinite', 'isNaN',
     'parseInt', 'setTimeout'
-  ];
-
-  /** Used to fix the JScript [[DontEnum]] bug */
-  var shadowedProps = [
-    'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
-    'toLocaleString', 'toString', 'valueOf'
   ];
 
   /** Used to make template sourceURLs easier to identify */
@@ -1430,7 +2130,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       arrayClass = '[object Array]',
       boolClass = '[object Boolean]',
       dateClass = '[object Date]',
-      errorClass = '[object Error]',
       funcClass = '[object Function]',
       numberClass = '[object Number]',
       objectClass = '[object Object]',
@@ -1458,21 +2157,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     'enumerable': false,
     'value': null,
     'writable': false
-  };
-
-  /** Used as the data object for `iteratorTemplate` */
-  var iteratorData = {
-    'args': '',
-    'array': null,
-    'bottom': '',
-    'firstArg': '',
-    'init': '',
-    'keys': null,
-    'loop': '',
-    'shadowedProps': null,
-    'support': null,
-    'top': '',
-    'useHas': false
   };
 
   /** Used to determine if values are of the language type Object */
@@ -1720,19 +2404,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
   }
 
   /**
-   * Checks if `value` is a DOM node in IE < 9.
-   *
-   * @private
-   * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if the `value` is a DOM node, else `false`.
-   */
-  function isNode(value) {
-    // IE < 9 presents DOM nodes as `Object` objects except they have `toString`
-    // methods that are `typeof` "string" and still can coerce nodes to strings
-    return typeof value.toString != 'function' && typeof (value + '') == 'string';
-  }
-
-  /**
    * Releases the given array back to the array pool.
    *
    * @private
@@ -1812,7 +2483,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     var Array = context.Array,
         Boolean = context.Boolean,
         Date = context.Date,
-        Error = context.Error,
         Function = context.Function,
         Math = context.Math,
         Number = context.Number,
@@ -1830,9 +2500,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     var arrayRef = [];
 
     /** Used for native method references */
-    var errorProto = Error.prototype,
-        objectProto = Object.prototype,
-        stringProto = String.prototype;
+    var objectProto = Object.prototype;
 
     /** Used to restore the original `_` reference in `noConflict` */
     var oldDash = context._;
@@ -1855,7 +2523,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
         getPrototypeOf = isNative(getPrototypeOf = Object.getPrototypeOf) && getPrototypeOf,
         hasOwnProperty = objectProto.hasOwnProperty,
         push = arrayRef.push,
-        propertyIsEnumerable = objectProto.propertyIsEnumerable,
         setTimeout = context.setTimeout,
         splice = arrayRef.splice,
         unshift = arrayRef.unshift;
@@ -1892,25 +2559,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     ctorByClass[numberClass] = Number;
     ctorByClass[regexpClass] = RegExp;
     ctorByClass[stringClass] = String;
-
-    /** Used to avoid iterating non-enumerable properties in IE < 9 */
-    var nonEnumProps = {};
-    nonEnumProps[arrayClass] = nonEnumProps[dateClass] = nonEnumProps[numberClass] = { 'constructor': true, 'toLocaleString': true, 'toString': true, 'valueOf': true };
-    nonEnumProps[boolClass] = nonEnumProps[stringClass] = { 'constructor': true, 'toString': true, 'valueOf': true };
-    nonEnumProps[errorClass] = nonEnumProps[funcClass] = nonEnumProps[regexpClass] = { 'constructor': true, 'toString': true };
-    nonEnumProps[objectClass] = { 'constructor': true };
-
-    (function() {
-      var length = shadowedProps.length;
-      while (length--) {
-        var key = shadowedProps[length];
-        for (var className in nonEnumProps) {
-          if (hasOwnProperty.call(nonEnumProps, className) && !hasOwnProperty.call(nonEnumProps[className], key)) {
-            nonEnumProps[className][key] = false;
-          }
-        }
-      }
-    }());
 
     /*--------------------------------------------------------------------------*/
 
@@ -2010,137 +2658,22 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      */
     var support = lodash.support = {};
 
-    (function() {
-      var ctor = function() { this.x = 1; },
-          object = { '0': 1, 'length': 1 },
-          props = [];
+    /**
+     * Detect if functions can be decompiled by `Function#toString`
+     * (all but PS3 and older Opera mobile browsers & avoided in Windows 8 apps).
+     *
+     * @memberOf _.support
+     * @type boolean
+     */
+    support.funcDecomp = !isNative(context.WinRTError) && reThis.test(runInContext);
 
-      ctor.prototype = { 'valueOf': 1, 'y': 1 };
-      for (var key in new ctor) { props.push(key); }
-      for (key in arguments) { }
-
-      /**
-       * Detect if an `arguments` object's [[Class]] is resolvable (all but Firefox < 4, IE < 9).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.argsClass = toString.call(arguments) == argsClass;
-
-      /**
-       * Detect if `arguments` objects are `Object` objects (all but Narwhal and Opera < 10.5).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.argsObject = arguments.constructor == Object && !(arguments instanceof Array);
-
-      /**
-       * Detect if `name` or `message` properties of `Error.prototype` are
-       * enumerable by default. (IE < 9, Safari < 5.1)
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.enumErrorProps = propertyIsEnumerable.call(errorProto, 'message') || propertyIsEnumerable.call(errorProto, 'name');
-
-      /**
-       * Detect if `prototype` properties are enumerable by default.
-       *
-       * Firefox < 3.6, Opera > 9.50 - Opera < 11.60, and Safari < 5.1
-       * (if the prototype or a property on the prototype has been set)
-       * incorrectly sets a function's `prototype` property [[Enumerable]]
-       * value to `true`.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.enumPrototypes = propertyIsEnumerable.call(ctor, 'prototype');
-
-      /**
-       * Detect if functions can be decompiled by `Function#toString`
-       * (all but PS3 and older Opera mobile browsers & avoided in Windows 8 apps).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.funcDecomp = !isNative(context.WinRTError) && reThis.test(runInContext);
-
-      /**
-       * Detect if `Function#name` is supported (all but IE).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.funcNames = typeof Function.name == 'string';
-
-      /**
-       * Detect if `arguments` object indexes are non-enumerable
-       * (Firefox < 4, IE < 9, PhantomJS, Safari < 5.1).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.nonEnumArgs = key != 0;
-
-      /**
-       * Detect if properties shadowing those on `Object.prototype` are non-enumerable.
-       *
-       * In IE < 9 an objects own properties, shadowing non-enumerable ones, are
-       * made non-enumerable as well (a.k.a the JScript [[DontEnum]] bug).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.nonEnumShadows = !/valueOf/.test(props);
-
-      /**
-       * Detect if own properties are iterated after inherited properties (all but IE < 9).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.ownLast = props[0] != 'x';
-
-      /**
-       * Detect if `Array#shift` and `Array#splice` augment array-like objects correctly.
-       *
-       * Firefox < 10, IE compatibility mode, and IE < 9 have buggy Array `shift()`
-       * and `splice()` functions that fail to remove the last element, `value[0]`,
-       * of array-like objects even though the `length` property is set to `0`.
-       * The `shift()` method is buggy in IE 8 compatibility mode, while `splice()`
-       * is buggy regardless of mode in IE < 9 and buggy in compatibility mode in IE 9.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.spliceObjects = (arrayRef.splice.call(object, 0, 1), !object[0]);
-
-      /**
-       * Detect lack of support for accessing string characters by index.
-       *
-       * IE < 8 can't access characters by index and IE 8 can only access
-       * characters by index on string literals.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.unindexedChars = ('x'[0] + Object('x')[0]) != 'xx';
-
-      /**
-       * Detect if a DOM node's [[Class]] is resolvable (all but IE < 9)
-       * and that the JS engine errors when attempting to coerce an object to
-       * a string without a `toString` function.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      try {
-        support.nodeClass = !(toString.call(document) == objectClass && !({ 'toString': 0 } + ''));
-      } catch(e) {
-        support.nodeClass = true;
-      }
-    }(1));
+    /**
+     * Detect if `Function#name` is supported (all but IE).
+     *
+     * @memberOf _.support
+     * @type boolean
+     */
+    support.funcNames = typeof Function.name == 'string';
 
     /**
      * By default, the template delimiters used by Lo-Dash are similar to those in
@@ -2206,106 +2739,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     /*--------------------------------------------------------------------------*/
 
     /**
-     * The template used to create iterator functions.
-     *
-     * @private
-     * @param {Object} data The data object used to populate the text.
-     * @returns {string} Returns the interpolated text.
-     */
-    var iteratorTemplate = function(obj) {
-
-      var __p = 'var index, iterable = ' +
-      (obj.firstArg) +
-      ', result = ' +
-      (obj.init) +
-      ';\nif (!iterable) return result;\n' +
-      (obj.top) +
-      ';';
-       if (obj.array) {
-      __p += '\nvar length = iterable.length; index = -1;\nif (' +
-      (obj.array) +
-      ') {  ';
-       if (support.unindexedChars) {
-      __p += '\n  if (isString(iterable)) {\n    iterable = iterable.split(\'\')\n  }  ';
-       }
-      __p += '\n  while (++index < length) {\n    ' +
-      (obj.loop) +
-      ';\n  }\n}\nelse {  ';
-       } else if (support.nonEnumArgs) {
-      __p += '\n  var length = iterable.length; index = -1;\n  if (length && isArguments(iterable)) {\n    while (++index < length) {\n      index += \'\';\n      ' +
-      (obj.loop) +
-      ';\n    }\n  } else {  ';
-       }
-
-       if (support.enumPrototypes) {
-      __p += '\n  var skipProto = typeof iterable == \'function\';\n  ';
-       }
-
-       if (support.enumErrorProps) {
-      __p += '\n  var skipErrorProps = iterable === errorProto || iterable instanceof Error;\n  ';
-       }
-
-          var conditions = [];    if (support.enumPrototypes) { conditions.push('!(skipProto && index == "prototype")'); }    if (support.enumErrorProps)  { conditions.push('!(skipErrorProps && (index == "message" || index == "name"))'); }
-
-       if (obj.useHas && obj.keys) {
-      __p += '\n  var ownIndex = -1,\n      ownProps = objectTypes[typeof iterable] && keys(iterable),\n      length = ownProps ? ownProps.length : 0;\n\n  while (++ownIndex < length) {\n    index = ownProps[ownIndex];\n';
-          if (conditions.length) {
-      __p += '    if (' +
-      (conditions.join(' && ')) +
-      ') {\n  ';
-       }
-      __p +=
-      (obj.loop) +
-      ';    ';
-       if (conditions.length) {
-      __p += '\n    }';
-       }
-      __p += '\n  }  ';
-       } else {
-      __p += '\n  for (index in iterable) {\n';
-          if (obj.useHas) { conditions.push("hasOwnProperty.call(iterable, index)"); }    if (conditions.length) {
-      __p += '    if (' +
-      (conditions.join(' && ')) +
-      ') {\n  ';
-       }
-      __p +=
-      (obj.loop) +
-      ';    ';
-       if (conditions.length) {
-      __p += '\n    }';
-       }
-      __p += '\n  }    ';
-       if (support.nonEnumShadows) {
-      __p += '\n\n  if (iterable !== objectProto) {\n    var ctor = iterable.constructor,\n        isProto = iterable === (ctor && ctor.prototype),\n        className = iterable === stringProto ? stringClass : iterable === errorProto ? errorClass : toString.call(iterable),\n        nonEnum = nonEnumProps[className];\n      ';
-       for (k = 0; k < 7; k++) {
-      __p += '\n    index = \'' +
-      (obj.shadowedProps[k]) +
-      '\';\n    if ((!(isProto && nonEnum[index]) && hasOwnProperty.call(iterable, index))';
-              if (!obj.useHas) {
-      __p += ' || (!nonEnum[index] && iterable[index] !== objectProto[index])';
-       }
-      __p += ') {\n      ' +
-      (obj.loop) +
-      ';\n    }      ';
-       }
-      __p += '\n  }    ';
-       }
-
-       }
-
-       if (obj.array || support.nonEnumArgs) {
-      __p += '\n}';
-       }
-      __p +=
-      (obj.bottom) +
-      ';\nreturn result';
-
-      return __p
-    };
-
-    /*--------------------------------------------------------------------------*/
-
-    /**
      * The base implementation of `_.bind` that creates the bound function and
      * sets its meta data.
      *
@@ -2365,7 +2798,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       var isObj = isObject(value);
       if (isObj) {
         var className = toString.call(value);
-        if (!cloneableClasses[className] || (!support.nodeClass && isNode(value))) {
+        if (!cloneableClasses[className]) {
           return value;
         }
         var ctor = ctorByClass[className];
@@ -2423,7 +2856,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       stackB.push(result);
 
       // recursively populate clone (susceptible to call stack limits)
-      (isArr ? baseEach : forOwn)(value, function(objValue, key) {
+      (isArr ? forEach : forOwn)(value, function(objValue, key) {
         result[key] = baseClone(objValue, isDeep, callback, stackA, stackB);
       });
 
@@ -2730,12 +3163,12 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           return baseIsEqual(aWrapped ? a.__wrapped__ : a, bWrapped ? b.__wrapped__ : b, callback, isWhere, stackA, stackB);
         }
         // exit for functions and DOM nodes
-        if (className != objectClass || (!support.nodeClass && (isNode(a) || isNode(b)))) {
+        if (className != objectClass) {
           return false;
         }
         // in older versions of Opera, `arguments` objects have `Array` constructors
-        var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor,
-            ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
+        var ctorA = a.constructor,
+            ctorB = b.constructor;
 
         // non `Object` object instances with different constructors are not equal
         if (ctorA != ctorB &&
@@ -2962,16 +3395,16 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
         var result = {};
         callback = lodash.createCallback(callback, thisArg, 3);
 
-        if (isArray(collection)) {
-          var index = -1,
-              length = collection.length;
+        var index = -1,
+            length = collection ? collection.length : 0;
 
+        if (typeof length == 'number') {
           while (++index < length) {
             var value = collection[index];
             setter(result, value, callback(value, index, collection), collection);
           }
         } else {
-          baseEach(collection, function(value, key, collection) {
+          forOwn(collection, function(value, key, collection) {
             setter(result, value, callback(value, key, collection), collection);
           });
         }
@@ -3060,54 +3493,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     }
 
     /**
-     * Creates compiled iteration functions.
-     *
-     * @private
-     * @param {...Object} [options] The compile options object(s).
-     * @param {string} [options.array] Code to determine if the iterable is an array or array-like.
-     * @param {boolean} [options.useHas] Specify using `hasOwnProperty` checks in the object loop.
-     * @param {Function} [options.keys] A reference to `_.keys` for use in own property iteration.
-     * @param {string} [options.args] A comma separated string of iteration function arguments.
-     * @param {string} [options.top] Code to execute before the iteration branches.
-     * @param {string} [options.loop] Code to execute in the object loop.
-     * @param {string} [options.bottom] Code to execute after the iteration branches.
-     * @returns {Function} Returns the compiled function.
-     */
-    function createIterator() {
-      // data properties
-      iteratorData.shadowedProps = shadowedProps;
-
-      // iterator options
-      iteratorData.array = iteratorData.bottom = iteratorData.loop = iteratorData.top = '';
-      iteratorData.init = 'iterable';
-      iteratorData.useHas = true;
-
-      // merge options into a template data object
-      for (var object, index = 0; object = arguments[index]; index++) {
-        for (var key in object) {
-          iteratorData[key] = object[key];
-        }
-      }
-      var args = iteratorData.args;
-      iteratorData.firstArg = /^[^,]+/.exec(args)[0];
-
-      // create the function factory
-      var factory = Function(
-          'baseCreateCallback, errorClass, errorProto, hasOwnProperty, ' +
-          'indicatorObject, isArguments, isArray, isString, keys, objectProto, ' +
-          'objectTypes, nonEnumProps, stringClass, stringProto, toString',
-        'return function(' + args + ') {\n' + iteratorTemplate(iteratorData) + '\n}'
-      );
-
-      // return the compiled function
-      return factory(
-        baseCreateCallback, errorClass, errorProto, hasOwnProperty,
-        indicatorObject, isArguments, isArray, isString, iteratorData.keys, objectProto,
-        objectTypes, nonEnumProps, stringClass, stringProto, toString
-      );
-    }
-
-    /**
      * Used by `escape` to convert characters to HTML entities.
      *
      * @private
@@ -3170,20 +3555,8 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
 
       // avoid non Object objects, `arguments` objects, and DOM elements
       if (!(value && toString.call(value) == objectClass) ||
-          (ctor = value.constructor, isFunction(ctor) && !(ctor instanceof ctor)) ||
-          (!support.argsClass && isArguments(value)) ||
-          (!support.nodeClass && isNode(value))) {
+          (ctor = value.constructor, isFunction(ctor) && !(ctor instanceof ctor))) {
         return false;
-      }
-      // IE < 9 iterates inherited properties before own properties. If the first
-      // iterated property is an object's own property then there are no inherited
-      // enumerable properties.
-      if (support.ownLast) {
-        forIn(value, function(value, key, object) {
-          result = hasOwnProperty.call(object, key);
-          return false;
-        });
-        return result !== false;
       }
       // In most environments an object's own properties are iterated before
       // its inherited properties. If the last iterated property is an object's
@@ -3227,13 +3600,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       return value && typeof value == 'object' && typeof value.length == 'number' &&
         toString.call(value) == argsClass || false;
     }
-    // fallback for browsers that can't detect `arguments` objects by [[Class]]
-    if (!support.argsClass) {
-      isArguments = function(value) {
-        return value && typeof value == 'object' && typeof value.length == 'number' &&
-          hasOwnProperty.call(value, 'callee') && !propertyIsEnumerable.call(value, 'callee') || false;
-      };
-    }
 
     /**
      * Checks if `value` is an array.
@@ -3266,12 +3632,17 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * @param {Object} object The object to inspect.
      * @returns {Array} Returns an array of property names.
      */
-    var shimKeys = createIterator({
-      'args': 'object',
-      'init': '[]',
-      'top': 'if (!(objectTypes[typeof object])) return result',
-      'loop': 'result.push(index)'
-    });
+    var shimKeys = function(object) {
+      var index, iterable = object, result = [];
+      if (!iterable) return result;
+      if (!(objectTypes[typeof object])) return result;
+        for (index in iterable) {
+          if (hasOwnProperty.call(iterable, index)) {
+            result.push(index);
+          }
+        }
+      return result
+    };
 
     /**
      * Creates an array composed of the own enumerable property names of an object.
@@ -3290,41 +3661,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       if (!isObject(object)) {
         return [];
       }
-      if ((support.enumPrototypes && typeof object == 'function') ||
-          (support.nonEnumArgs && object.length && isArguments(object))) {
-        return shimKeys(object);
-      }
       return nativeKeys(object);
-    };
-
-    /** Reusable iterator options shared by `each`, `forIn`, and `forOwn` */
-    var eachIteratorOptions = {
-      'args': 'collection, callback, thisArg',
-      'top': "callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3)",
-      'array': "typeof length == 'number'",
-      'keys': keys,
-      'loop': 'if (callback(iterable[index], index, collection) === false) return result'
-    };
-
-    /** Reusable iterator options for `assign` and `defaults` */
-    var defaultsIteratorOptions = {
-      'args': 'object, source, guard',
-      'top':
-        'var args = arguments,\n' +
-        '    argsIndex = 0,\n' +
-        "    argsLength = typeof guard == 'number' ? 2 : args.length;\n" +
-        'while (++argsIndex < argsLength) {\n' +
-        '  iterable = args[argsIndex];\n' +
-        '  if (iterable && objectTypes[typeof iterable]) {',
-      'keys': keys,
-      'loop': "if (typeof result[index] == 'undefined') result[index] = iterable[index]",
-      'bottom': '  }\n}'
-    };
-
-    /** Reusable iterator options for `forIn` and `forOwn` */
-    var forOwnIteratorOptions = {
-      'top': 'if (!objectTypes[typeof iterable]) return result;\n' + eachIteratorOptions.top,
-      'array': false
     };
 
     /**
@@ -3349,22 +3686,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     /** Used to match HTML entities and HTML characters */
     var reEscapedHtml = RegExp('(' + keys(htmlUnescapes).join('|') + ')', 'g'),
         reUnescapedHtml = RegExp('[' + keys(htmlEscapes).join('') + ']', 'g');
-
-    /**
-     * A function compiled to iterate `arguments` objects, arrays, objects, and
-     * strings consistenly across environments, executing the callback for each
-     * element in the collection. The callback is bound to `thisArg` and invoked
-     * with three arguments; (value, index|key, collection). Callbacks may exit
-     * iteration early by explicitly returning `false`.
-     *
-     * @private
-     * @type Function
-     * @param {Array|Object|string} collection The collection to iterate over.
-     * @param {Function} [callback=identity] The function called per iteration.
-     * @param {*} [thisArg] The `this` binding of `callback`.
-     * @returns {Array|Object|string} Returns `collection`.
-     */
-    var baseEach = createIterator(eachIteratorOptions);
 
     /*--------------------------------------------------------------------------*/
 
@@ -3398,18 +3719,32 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * defaults(object, { 'name': 'fred', 'employer': 'slate' });
      * // => { 'name': 'barney', 'employer': 'slate' }
      */
-    var assign = createIterator(defaultsIteratorOptions, {
-      'top':
-        defaultsIteratorOptions.top.replace(';',
-          ';\n' +
-          "if (argsLength > 3 && typeof args[argsLength - 2] == 'function') {\n" +
-          '  var callback = baseCreateCallback(args[--argsLength - 1], args[argsLength--], 2);\n' +
-          "} else if (argsLength > 2 && typeof args[argsLength - 1] == 'function') {\n" +
-          '  callback = args[--argsLength];\n' +
-          '}'
-        ),
-      'loop': 'result[index] = callback ? callback(result[index], iterable[index]) : iterable[index]'
-    });
+    var assign = function(object, source, guard) {
+      var index, iterable = object, result = iterable;
+      if (!iterable) return result;
+      var args = arguments,
+          argsIndex = 0,
+          argsLength = typeof guard == 'number' ? 2 : args.length;
+      if (argsLength > 3 && typeof args[argsLength - 2] == 'function') {
+        var callback = baseCreateCallback(args[--argsLength - 1], args[argsLength--], 2);
+      } else if (argsLength > 2 && typeof args[argsLength - 1] == 'function') {
+        callback = args[--argsLength];
+      }
+      while (++argsIndex < argsLength) {
+        iterable = args[argsIndex];
+        if (iterable && objectTypes[typeof iterable]) {
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          result[index] = callback ? callback(result[index], iterable[index]) : iterable[index];
+        }
+        }
+      }
+      return result
+    };
 
     /**
      * Creates a clone of `value`. If `isDeep` is `true` nested objects will also
@@ -3563,7 +3898,27 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * _.defaults(object, { 'name': 'fred', 'employer': 'slate' });
      * // => { 'name': 'barney', 'employer': 'slate' }
      */
-    var defaults = createIterator(defaultsIteratorOptions);
+    var defaults = function(object, source, guard) {
+      var index, iterable = object, result = iterable;
+      if (!iterable) return result;
+      var args = arguments,
+          argsIndex = 0,
+          argsLength = typeof guard == 'number' ? 2 : args.length;
+      while (++argsIndex < argsLength) {
+        iterable = args[argsIndex];
+        if (iterable && objectTypes[typeof iterable]) {
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          if (typeof result[index] == 'undefined') result[index] = iterable[index];
+        }
+        }
+      }
+      return result
+    };
 
     /**
      * This method is like `_.findIndex` except that it returns the key of the
@@ -3702,9 +4057,16 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * });
      * // => logs 'x', 'y', and 'move' (property order is not guaranteed across environments)
      */
-    var forIn = createIterator(eachIteratorOptions, forOwnIteratorOptions, {
-      'useHas': false
-    });
+    var forIn = function(collection, callback, thisArg) {
+      var index, iterable = collection, result = iterable;
+      if (!iterable) return result;
+      if (!objectTypes[typeof iterable]) return result;
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+        for (index in iterable) {
+          if (callback(iterable[index], index, collection) === false) return result;
+        }
+      return result
+    };
 
     /**
      * This method is like `_.forIn` except that it iterates over elements
@@ -3772,7 +4134,21 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * });
      * // => logs '0', '1', and 'length' (property order is not guaranteed across environments)
      */
-    var forOwn = createIterator(eachIteratorOptions, forOwnIteratorOptions);
+    var forOwn = function(collection, callback, thisArg) {
+      var index, iterable = collection, result = iterable;
+      if (!iterable) return result;
+      if (!objectTypes[typeof iterable]) return result;
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          if (callback(iterable[index], index, collection) === false) return result;
+        }
+      return result
+    };
 
     /**
      * This method is like `_.forOwn` except that it iterates over elements
@@ -3957,8 +4333,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       var className = toString.call(value),
           length = value.length;
 
-      if ((className == arrayClass || className == stringClass ||
-          (support.argsClass ? className == argsClass : isArguments(value))) ||
+      if ((className == arrayClass || className == stringClass || className == argsClass ) ||
           (className == objectClass && typeof length == 'number' && isFunction(value.splice))) {
         return !length;
       }
@@ -4057,12 +4432,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      */
     function isFunction(value) {
       return typeof value == 'function';
-    }
-    // fallback for older versions of Chrome and Safari
-    if (isFunction(/x/)) {
-      isFunction = function(value) {
-        return typeof value == 'function' && toString.call(value) == funcClass;
-      };
     }
 
     /**
@@ -4189,7 +4558,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * // => true
      */
     var isPlainObject = !getPrototypeOf ? shimIsPlainObject : function(value) {
-      if (!(value && toString.call(value) == objectClass) || (!support.argsClass && isArguments(value))) {
+      if (!(value && toString.call(value) == objectClass)) {
         return false;
       }
       var valueOf = value.valueOf,
@@ -4214,7 +4583,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * // => true
      */
     function isRegExp(value) {
-      return value && objectTypes[typeof value] && toString.call(value) == regexpClass || false;
+      return value && typeof value == 'object' && toString.call(value) == regexpClass || false;
     }
 
     /**
@@ -4555,7 +4924,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       }
       if (callback) {
         callback = lodash.createCallback(callback, thisArg, 4);
-        (isArr ? baseEach : forOwn)(object, function(value, index, object) {
+        (isArr ? forEach : forOwn)(object, function(value, index, object) {
           return callback(accumulator, value, index, object);
         });
       }
@@ -4617,9 +4986,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           length = (args[2] && args[2][args[1]] === collection) ? 1 : props.length,
           result = Array(length);
 
-      if (support.unindexedChars && isString(collection)) {
-        collection = collection.split('');
-      }
       while(++index < length) {
         result[index] = collection[props[index]];
       }
@@ -4665,7 +5031,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       } else if (typeof length == 'number') {
         result = (isString(collection) ? collection.indexOf(target, fromIndex) : indexOf(collection, target, fromIndex)) > -1;
       } else {
-        baseEach(collection, function(value) {
+        forOwn(collection, function(value) {
           if (++index >= fromIndex) {
             return !(result = value === target);
           }
@@ -4757,17 +5123,17 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       var result = true;
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           if (!(result = !!callback(collection[index], index, collection))) {
             break;
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           return (result = !!callback(value, index, collection));
         });
       }
@@ -4818,10 +5184,10 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       var result = [];
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           var value = collection[index];
           if (callback(value, index, collection)) {
@@ -4829,7 +5195,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           if (callback(value, index, collection)) {
             result.push(value);
           }
@@ -4884,10 +5250,10 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     function find(collection, callback, thisArg) {
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           var value = collection[index];
           if (callback(value, index, collection)) {
@@ -4896,7 +5262,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
         }
       } else {
         var result;
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           if (callback(value, index, collection)) {
             result = value;
             return false;
@@ -4965,17 +5331,18 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * // => logs each number and returns the object (property order is not guaranteed across environments)
      */
     function forEach(collection, callback, thisArg) {
-      if (callback && typeof thisArg == 'undefined' && isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+      if (typeof length == 'number') {
         while (++index < length) {
           if (callback(collection[index], index, collection) === false) {
             break;
           }
         }
       } else {
-        baseEach(collection, callback, thisArg);
+        forOwn(collection, callback);
       }
       return collection;
     }
@@ -4998,26 +5365,20 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * // => logs each number from right to left and returns '3,2,1'
      */
     function forEachRight(collection, callback, thisArg) {
-      var iterable = collection,
-          length = collection ? collection.length : 0;
-
+      var length = collection ? collection.length : 0;
       callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
-      if (isArray(collection)) {
+      if (typeof length == 'number') {
         while (length--) {
           if (callback(collection[length], length, collection) === false) {
             break;
           }
         }
       } else {
-        if (typeof length != 'number') {
-          var props = keys(collection);
-          length = props.length;
-        } else if (support.unindexedChars && isString(collection)) {
-          iterable = collection.split('');
-        }
-        baseEach(collection, function(value, key, collection) {
+        var props = keys(collection);
+        length = props.length;
+        forOwn(collection, function(value, key, collection) {
           key = props ? props[--length] : --length;
-          return callback(iterable[key], key, collection);
+          return callback(collection[key], key, collection);
         });
       }
       return collection;
@@ -5181,16 +5542,17 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      */
     function map(collection, callback, thisArg) {
       var index = -1,
-          length = collection ? collection.length : 0,
-          result = Array(typeof length == 'number' ? length : 0);
+          length = collection ? collection.length : 0;
 
       callback = lodash.createCallback(callback, thisArg, 3);
-      if (isArray(collection)) {
+      if (typeof length == 'number') {
+        var result = Array(length);
         while (++index < length) {
           result[index] = callback(collection[index], index, collection);
         }
       } else {
-        baseEach(collection, function(value, key, collection) {
+        result = [];
+        forOwn(collection, function(value, key, collection) {
           result[++index] = callback(value, key, collection);
         });
       }
@@ -5261,7 +5623,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           ? charAtCallback
           : lodash.createCallback(callback, thisArg, 3);
 
-        baseEach(collection, function(value, index, collection) {
+        forEach(collection, function(value, index, collection) {
           var current = callback(value, index, collection);
           if (current > computed) {
             computed = current;
@@ -5336,7 +5698,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           ? charAtCallback
           : lodash.createCallback(callback, thisArg, 3);
 
-        baseEach(collection, function(value, index, collection) {
+        forEach(collection, function(value, index, collection) {
           var current = callback(value, index, collection);
           if (current < computed) {
             computed = current;
@@ -5400,13 +5762,14 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      * // => { 'a': 3, 'b': 6, 'c': 9 }
      */
     function reduce(collection, callback, accumulator, thisArg) {
+      if (!collection) return accumulator;
       var noaccum = arguments.length < 3;
       callback = lodash.createCallback(callback, thisArg, 4);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection.length;
 
+      if (typeof length == 'number') {
         if (noaccum) {
           accumulator = collection[++index];
         }
@@ -5414,7 +5777,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
           accumulator = callback(accumulator, collection[index], index, collection);
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           accumulator = noaccum
             ? (noaccum = false, value)
             : callback(accumulator, value, index, collection)
@@ -5520,8 +5883,6 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     function sample(collection, n, guard) {
       if (collection && typeof collection.length != 'number') {
         collection = values(collection);
-      } else if (support.unindexedChars && isString(collection)) {
-        collection = collection.split('');
       }
       if (n == null || guard) {
         return collection ? collection[baseRandom(0, collection.length - 1)] : undefined;
@@ -5629,17 +5990,17 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
       var result;
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           if ((result = callback(collection[index], index, collection))) {
             break;
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           return !(result = callback(value, index, collection));
         });
       }
@@ -5743,9 +6104,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
      */
     function toArray(collection) {
       if (collection && typeof collection.length == 'number') {
-        return (support.unindexedChars && isString(collection))
-          ? collection.split('')
-          : slice(collection);
+        return slice(collection);
       }
       return values(collection);
     }
@@ -8401,7 +8760,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     lodash.prototype.valueOf = wrapperValueOf;
 
     // add `Array` functions that return unwrapped values
-    baseEach(['join', 'pop', 'shift'], function(methodName) {
+    forEach(['join', 'pop', 'shift'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         var chainAll = this.__chain__,
@@ -8414,7 +8773,7 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     });
 
     // add `Array` functions that return the existing wrapped value
-    baseEach(['push', 'reverse', 'sort', 'unshift'], function(methodName) {
+    forEach(['push', 'reverse', 'sort', 'unshift'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         func.apply(this.__wrapped__, arguments);
@@ -8423,34 +8782,12 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
     });
 
     // add `Array` functions that return new wrapped values
-    baseEach(['concat', 'slice', 'splice'], function(methodName) {
+    forEach(['concat', 'slice', 'splice'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         return new lodashWrapper(func.apply(this.__wrapped__, arguments), this.__chain__);
       };
     });
-
-    // avoid array-like object bugs with `Array#shift` and `Array#splice`
-    // in IE < 9, Firefox < 10, Narwhal, and RingoJS
-    if (!support.spliceObjects) {
-      baseEach(['pop', 'shift', 'splice'], function(methodName) {
-        var func = arrayRef[methodName],
-            isSplice = methodName == 'splice';
-
-        lodash.prototype[methodName] = function() {
-          var chainAll = this.__chain__,
-              value = this.__wrapped__,
-              result = func.apply(value, arguments);
-
-          if (value.length === 0) {
-            delete value[0];
-          }
-          return (chainAll || isSplice)
-            ? new lodashWrapper(result, chainAll)
-            : result;
-        };
-      });
-    }
 
     return lodash;
   }
@@ -8490,1318 +8827,5 @@ require.register("lodash-lodash/dist/lodash.compat.js", function(exports, requir
   }
 }.call(this));
 
-});
-require.register("goangular/index.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, angular */
-/* exported goinstant */
-
-/**
- * @fileOverview
- *
- * Contains Angular service and filter registrations
- **/
-
-'use strict';
-
-var connectionFactory = require('./lib/connection_factory');
-
-var keySync = require('./lib/key_sync');
-var keyFactory = require('./lib/key_factory');
-
-var querySync = require('./lib/query_sync');
-var queryFactory = require('./lib/query_factory');
-
-/** Module Registration */
-
-var goangular = angular.module('goangular', []);
-
-/** Services **/
-
-goangular.provider('$goConnection', connectionFactory);
-
-goangular.factory('$goKeySync', [ '$parse', '$timeout', keySync ]);
-goangular.factory('$goKey', [ '$goKeySync', '$goConnection', keyFactory ]);
-
-goangular.factory('$goQuerySync', [ '$parse', '$timeout', querySync ]);
-goangular.factory('$goQuery', [
-  '$goQuerySync',
-  '$goKey',
-  '$goConnection',
-  queryFactory
-]);
-
-});
-require.register("goangular/lib/query_factory.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the Query Factory, responsible for creating and
- * returning instances of the GoAngular Query Model.
- */
-
-'use strict';
-
-var Model = require('./model');
-var Args = require('./util/args');
-var _ = require('lodash');
-
-/**
- * queryFactory
- * @public
- * @param {Object} $querySync - Responsible for synchronizing query model
- * @param {Object} $conn - GoInstant connection
- * @returns {Function} option validation & instance creation
- */
-module.exports = function queryFactory($querySync, $goKey, $conn) {
-
-  /**
-   * @public
-   * @param {Object} key - GoInstant key
-   */
-  return function $query() {
-    var a = new Args([
-      { key: Args.OBJECT | Args.STRING | Args.Required },
-      { room: Args.STRING | Args.Optional },
-      { expr: Args.OBJECT | Args.Optional, _default: {} },
-      { options: Args.OBJECT | Args.Required }
-    ], arguments);
-
-    var key = _.isObject(a.key) ? a.key : $conn.$key(a.key, a.room);
-    var query = key.query(a.expr || {}, a.options);
-    var sync = $querySync(query);
-
-    return new Model($conn, key, sync, $goKey);
-  };
-};
-
-});
-require.register("goangular/lib/query_sync.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the QuerySync class, used to create a binding between
- * a query model on $scope and a GoInstant query
- */
-
-'use strict';
-
-var _ = require('lodash');
-
-module.exports = function querySync($parse, $timeout) {
-
-  /**
-   * @public
-   * @param {Object} query - GoInstant Query object
-   */
-  return function(query) {
-    return new QuerySync($parse, $timeout, query);
-  };
-};
-
-/**
- * The Sync class is responsible for synchronizing the state of a local model,
- * with that of a GoInstant key.
- *
- * @constructor
- * @param {Object} $parse - Angular parse object
- * @param {Object} $timeout - Angular timeout object
- * @param {Object} query - GoInstant query object
- */
-function QuerySync($parse, $timeout, query) {
-  _.bindAll(this, [
-    '$initialize',
-    '$$handleUpdate',
-    '$$handleRemove'
-  ]);
-
-  _.extend(this, {
-    $parse: $parse,
-    $timeout: $timeout,
-    $$query: query,
-    $$model: null,
-    $$registry: {}
-  });
-}
-
-/**
- * Creates an association between a local object and a query by
- * fetching a result set and monitoring the query.
- * @param {Object} model - local object
- */
-QuerySync.prototype.$initialize = function(model) {
-  this.$$model = model;
-  var self = this;
-
-  var index = self.$$model.$$index;
-
-  self.$$query.execute(function(err, results) {
-    if (err) {
-      return self.$$model.$$emitter.emit('error', err);
-    }
-
-    self.$$registry = {
-      update: self.$$handleUpdate,
-      add: self.$$handleUpdate,
-      remove: self.$$handleRemove
-    };
-
-    _.each(self.$$registry, function(fn, event) {
-      self.$$query.on(event, fn);
-    });
-
-    self.$timeout(function() {
-      _.map(results, function(result) {
-        index.push(result.name);
-        self.$$model[result.name] = result.value;
-      });
-
-      self.$$model.$$emitter.emit('ready');
-    });
-  });
-};
-
-/**
- * When the query result set changes, update our local model object
- * @private
- * @param {*} result - new result set
- * @param {Object} context - Information related to the key being set
- */
-QuerySync.prototype.$$handleUpdate = function(result, context) {
-  var self = this;
-
-  var index = self.$$model.$$index;
-
-  // Update the index array with the new position of this key
-  var currentIndex = _.indexOf(index, result.name);
-
-  if (currentIndex !== -1) {
-    _(index).splice(currentIndex, 1);
-  }
-
-  _(index).splice(context.position.current, 0, result.name);
-
-  // Update the value of the model.
-  // The index update above will NOT trigger any changes on scope.
-  // Removing this will cause position to not be updated.
-  self.$timeout(function() {
-    self.$$model[result.name] = result.value;
-  });
-};
-
-/**
- * When an item is removed from the result set, update the model
- * @private
- * @param {*} result - new result set
- * @param {Object} context - information related to the key being set
- */
-QuerySync.prototype.$$handleRemove = function(result, context) {
-  this.$$model.$$index.splice(context.position.previous, 1);
-
-  var self = this;
-  this.$timeout(function() {
-    delete self.$$model[result.name];
-  });
-};
-
-});
-require.register("goangular/lib/key_factory.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the Sync factory, responsible for creating and returning
- * instances of Sync.
- */
-
-'use strict';
-
-var Model = require('./model');
-var Args = require('./util/args');
-var _ = require('lodash');
-
-/**
- * keyFactory
- * @public
- * @param {Object} $keySync - Responsible for synchronizing an Angular model,
- * with an angular key.
- * @param {Object} $conn - GoInstant connection service
- * @returns {Function} option validation & instance creation
- */
-module.exports = function keyFactory($keySync, $conn) {
-
-  /**
-   * @public
-   * @param {Object} key - GoInstant key
-   */
-  return function $key() {
-    var a = new Args([
-      { key: Args.OBJECT | Args.STRING | Args.Required },
-      { room: Args.STRING | Args.Optional },
-    ], arguments);
-
-    var key = _.isObject(a.key) ? a.key : $conn.$key(a.key, a.room);
-    var sync = $keySync(key);
-
-    return new Model($conn, key, sync, $key);
-  };
-};
-
-});
-require.register("goangular/lib/key_sync.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the KeySync class, used to create a binding between
- * a model on $scope and a GoInstant key
- */
-
-'use strict';
-
-/* @todo slowly phase out external dependencies */
-var _ = require('lodash');
-var normalize = require('./util/normalize');
-
-module.exports = function keySync($parse, $timeout) {
-
-  /**
-   * @public
-   * @param {Object} key - GoInstant key
-   */
-  return function(key) {
-    return new KeySync($parse, $timeout, key);
-  };
-};
-
-/**
- * The KeySync class is responsible for synchronizing the state of a local model
- * with that of a GoInstant key.
- *
- * @constructor
- * @param {Object} $parse - Angular parse object
- * @param {Object} $timeout - Angular timeout object
- * @param {Object} key - Key unique to the controller scope
- */
-function KeySync($parse, $timeout, key) {
-  _.bindAll(this, [
-    '$initialize',
-    '$$handleUpdate',
-    '$$handleRemove'
-  ]);
-
-  _.extend(this, {
-    $parse: $parse,
-    $timeout: $timeout,
-    $$key: key,
-    $$model: null,
-    $$registry: {}
-  });
-}
-
-/**
- * Creates an association between a local object and a key in goinstant by
- * fetching an existing value and monitoring the key.
- * @param {Object} model - local object
- */
-KeySync.prototype.$initialize = function(model) {
-  var self = this;
-
-  this.$$model = model;
-
-  self.$$key.get(function(err, value) {
-    if (err) {
-      return self.$$model.$$emitter.emit('error', err);
-    }
-
-    self.$$registry = {
-      set: self.$$handleUpdate,
-      add: self.$$handleUpdate,
-      remove: self.$$handleRemove
-    };
-
-    _.each(self.$$registry, function(fn, event) {
-      self.$$key.on(event, {
-        local: true,
-        bubble: true,
-        listener: fn
-      });
-    });
-
-    if (!_.isObject(value)) {
-      value = { $value: value };
-    }
-
-    self.$timeout(function() {
-      _.merge(self.$$model, value);
-      self.$$model.$$emitter.emit('ready');
-    });
-  });
-};
-
-/**
- * When the value of the key has changed, we update our local model object
- * @private
- * @param {*} value - New key value
- * @param {Object} context - Information related to the key being set
- */
-KeySync.prototype.$$handleUpdate = function(value, context) {
-  var self = this;
-  var targetKey = (context.command ==='ADD') ? context.addedKey : context.key;
-
-  if (!_.isObject(value) && targetKey === context.currentKey) {
-    return self.$timeout(function() {
-      self.$$model.$value = value;
-
-      _.each(self.$$model, function(value, key, model) {
-        if (_.first(key) !== '$') {
-          delete model[key];
-        }
-      });
-    });
-  }
-
-  value = normalize(_.cloneDeep(value), context);
-
-  if (context.command === 'SET' && targetKey === context.currentKey) {
-    self.$timeout(function() {
-      _.each(self.$$model, function(value, key, model) {
-        if (_.first(key) !== '$') {
-          delete model[key];
-        }
-      });
-    });
-  }
-
-  if (context.command === 'SET' && targetKey !== context.currentKey) {
-    // Determine the relative path between the key we are listening too and the
-    // origin of the event.
-    var toPath = context.key.replace(context.currentKey, ''); // resolve path
-    toPath = toPath.replace(/^\/|\/$/g, ''); // trim trailing and starting slash
-
-    var sections = toPath.split('/');
-    var target = this.$$model;
-
-    // Loop over all the keys we need to navigate and traverse down until
-    // we're at the parent of the section being removed.
-    var ptr = [target]; // references to parts of the cache object
-    var parentIndex = sections.length - 1;
-
-    for (var i = 0; i < parentIndex; i++) {
-      target = target[sections[i]];
-
-      if (target === undefined) {
-        return this._resync();
-      }
-
-      ptr.push(target);
-    }
-
-    self.$timeout(function() {
-      delete target[sections[parentIndex]];
-    });
-
-    // Now that we've removed the root, we need to crawl back up the tree
-    // and collapse each node that no longer has any leaf-nodes.
-    self.$timeout(function() {
-      for (var section, j = parentIndex - 1; j >= 0; j--) {
-        section = sections[j];
-
-        if (_.size(ptr[j][section]) === 0) {
-            delete ptr[j][section];
-        }
-      }
-    });
-  }
-
-  self.$timeout(function() {
-    _.merge(self.$$model, value);
-    delete self.$$model.$value;
-  });
-};
-
-/**
- * When a key or one of it's children is destroyed we persist locally
- * @private
- * @param {*} value - New key value
- * @param {Object} context - Information related to the key being set
- */
-KeySync.prototype.$$handleRemove = function(value, context) {
-  var self = this;
-
-  if (context.currentKey === context.key) {
-
-    self.$timeout(function() {
-      if (self.$$model.$value) {
-        delete self.$$model.$value;
-        return;
-      }
-
-      _.each(self.$$model, function(value, key, model) {
-        if (_.first(key) !== '$') {
-          delete model[key];
-        }
-      });
-    });
-
-    _.each(self.$$registry, function (fn, event) {
-      self.$$key.off(event, fn);
-    });
-
-    return;
-  }
-
-  // Determine the relative path between the key we are listening too and the
-  // origin of the event.
-  var toPath = context.key.replace(context.currentKey, ''); // resolve path
-  toPath = toPath.replace(/^\/|\/$/g, ''); // trim trailing and starting slash
-
-  var sections = toPath.split('/');
-  var target = this.$$model;
-
-  // Loop over all the keys we need to navigate and traverse down until
-  // we're at the parent of the section being removed.
-  var ptr = [target]; // references to parts of the cache object
-  var parentIndex = sections.length - 1;
-
-  for (var i = 0; i < parentIndex; i++) {
-    target = target[sections[i]];
-
-    if (target === undefined) {
-      return this._resync();
-    }
-
-    ptr.push(target);
-  }
-
-  self.$timeout(function() {
-    delete target[sections[parentIndex]];
-  });
-
-  // Now that we've removed the root, we need to crawl back up the tree
-  // and collapse each node that no longer has any leaf-nodes.
-  self.$timeout(function() {
-    for (var section, j = parentIndex - 1; j >= 0; j--) {
-      section = sections[j];
-
-      if (_.size(ptr[j][section]) === 0) {
-          delete ptr[j][section];
-      }
-    }
-  });
-};
-
-});
-require.register("goangular/lib/connection.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module, goinstant */
-
-/**
- * @fileOverview
- *
- * This file contains an abstraction of the goinstant.connect method
- */
-
-'use strict';
-
-var _ = require('lodash');
-
-module.exports = Connection;
-
-/**
- * Instantiated by the Connection factory, this class allows users to configure
- * a goinstant connection during Angulars configuration stage.
- * @public
- * @constructor
- * @class
- * @example
- *  angular.module('YourApp', ['goangular'])
- *    .config(function(goConnectionProvider) {
- *      goConnectionProvider.set('https://goinstant.net/YOURACCOUNT/YOURAPP');
- *    })
- *    .controller('YourCtrl', function(goConnection) {
- *      goConnection.$ready().then(function(connection) {
- *        // connected
- *      });
- *    });
- */
-function Connection() {
-  _.extend(this, {
-    $$opts: {},
-    $$connection: null,
-    $$connecting: false,
-    $$configured: false,
-    $$rooms: {}
-  });
-}
-
-/**
- * Configure & connect to GoInstant
- * @param {String} url - Registered application URL
- * @param {Object} [opts]
- * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
- * @config {String} room - is an optional room name, defaults to 'lobby'
- * with the room option
- */
-Connection.prototype.$connect = function(url, opts) {
-  if (this.$$configured) {
-    throw new Error(
-      '$connect should not be used in conjunction with $set or invoked twice'
-    );
-  }
-
-  if (this.$$connection) {
-    return this.$$connection;
-  }
-
-  this.$set(url, opts);
-  this.$$connect();
-
-  return this.$$connection;
-};
-
-/**
- * Configure a future goinstant connection
- * @param {String} url - Registered application URL
- * @param {Object} [opts]
- * @config {Mixed} user - is an optional JWT or user object, defaults to 'guest'
- * @config {String} room - is an optional room name, defaults to 'lobby'
- * with the room option
- */
-Connection.prototype.$set = function(url, opts) {
-  if (!window.goinstant) {
-    throw new Error('GoAngular requires the GoInstant library.');
-  }
-
-  this.$$configured = true;
-  this.$$conn = new goinstant.Connection(url);
-
-  _.extend(this, { $$opts: (opts || {}), $$url: url, $$configured: true });
-};
-
-/**
- * This method is invoked by Angulars dependency injection system and initiates
- * the connection with GoInstant
- */
-Connection.prototype.$get = function() {
-  if (!window.goinstant) {
-    throw new Error('GoAngular requires the GoInstant library.');
-  }
-
-  if (this.$$configured && !this.$$connecting) {
-    this.$$connect();
-  }
-
-  return this;
-};
-
-Connection.prototype.$key = function(keyName, roomName) {
-  if (!this.$$configured) {
-    throw new Error(
-      'You must configure you connection first. ' +
-      'Find additional details: ' +
-      'https://developers.goinstant.com/v1/GoAngular/connection.html');
-  }
-
-  roomName = roomName || this.$$opts.room || 'lobby';
-
-  if (!this.$$rooms[roomName]) {
-    var self = this;
-
-    this.$$rooms[roomName] = true;
-    this.$$connection = this.$$connection.then(function() {
-      return self.$$conn.room(roomName).join().then(function() {
-        return self.$$conn;
-      });
-    });
-  }
-
-  return this.$$conn.room(roomName).key(keyName);
-};
-
-/**
- * Responsible for connecting to goinstant, assigns a promise to the private
- * connection property
- */
-Connection.prototype.$$connect = function() {
-  if (!this.$$configured) {
-    throw new Error('The GoInstant connection must be configured first.');
-  }
-
-  var user  = this.$$opts.user || {};
-
-  this.$$connecting = true;
-  this.$$connection = this.$$conn.connect(user || {}, function() {});
-};
-
-/**
- * @returns {Object} connection - a promise which will be resolved once a
- * connection has been established or rejected if an async error is encountered
- */
-Connection.prototype.$ready = function() {
-  if (!this.$$configured) {
-    throw new Error(
-      'You must configure you connection first.' +
-      'Find additional details:' +
-      ' https://developers.goinstant.com/v1/GoAngular/connection.html');
-  }
-
-  return this.$$connection;
-};
-
-});
-require.register("goangular/lib/connection_factory.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the Connection factory, responsible for the connection
- * singleton
- */
-
-'use strict';
-
-var Connection = require('./connection');
-var connection;
-
-module.exports = function connectionFactory() {
-  connection = connection || new Connection();
-
-  return connection;
-};
-
-});
-require.register("goangular/lib/model.js", function(exports, require, module){
-/* jshint browser:true */
-/* global require, module */
-
-/**
- * @fileOverview
- *
- * This file contains the Model class, an Angular friendly key wrapper
- */
-
-'use strict';
-
-var _ = require('lodash');
-var Emitter = require('emitter');
-
-module.exports = Model;
-
-var LOCAL_EVENTS = ['ready', 'error'];
-
-/**
- * Instantiated by a factory or $key method the constructor accepts a key,
- * which it extends with convenience methods.
- *
- * @public
- * @constructor
- * @class
- * @param {Object} $sync - Must implement synchronization interface
- * @param {Object} $conn - GoInstant connection service
- * @param {Object|String} key - GoInstant Key or string key name
- */
-function Model($conn, key, $sync, factory) {
-  _.bindAll(this);
-
-  _.extend(this, {
-    $$factory: factory,
-    $$sync: $sync,
-    $$conn: $conn,
-    $$key: key,
-    $$emitter: new Emitter(),
-    $$index: []
-  });
-}
-
-/**
- * Primes our model, fetching the current key value and monitoring it for
- * changes.
- */
-Model.prototype.$sync = function() {
-  var self = this;
-
-  var connected = self.$$conn.$ready();
-
-  connected.then(function() {
-    self.$$sync.$initialize(self);
-  });
-
-  connected.fail(function(err) {
-    self.$$emitter.emit('error', err);
-  });
-
-  return self;
-};
-
-/**
- * Create and return a new instance of Model, with a relative key.
- * @public
- * @param {String} keyName - Key name
- */
-Model.prototype.$key = function(keyName) {
-  var key = this.$$key.key(keyName);
-
-  return this.$$factory(key);
-};
-
-/**
- * Give the current key a new value
- * @public
- * @param {*} value - New value of key
- * @returns {Object} promise
- */
-Model.prototype.$set = function(value, opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.set(value, opts);
-  });
-};
-
-/**
- * Add a generated id with a
- * @public
- * @param {*} value - New value of key
- * @returns {Object} promise
- */
-Model.prototype.$add = function(value, opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.add(value, opts);
-  });
-};
-
-/**
- * Remove this key
- * @public
- * @returns {Object} promise
- */
-Model.prototype.$remove = function(opts) {
-  opts = opts || {};
-
-  var self = this;
-  return this.$$conn.$ready().then(function() {
-    return self.$$key.remove(opts);
-  });
-};
-
-/**
- * Returns a new object that does not contain prefixed methods
- * @public
- * @returns {Object} model
- */
-Model.prototype.$omit = function() {
-  return _.omit(this, function(value, key){
-    return _.first(key) === '$';
-  });
-};
-
-/**
- * Bind a listener to events on this key
- * @public
- */
-Model.prototype.$on = function(eventName, opts, listener) {
-  if (!_.contains(LOCAL_EVENTS, eventName)) {
-    return this.$$key.on(eventName, opts, listener);
-  }
-
-  // Overloaded method, opts = listener
-  this.$$emitter.on(eventName, opts);
-};
-
-/**
- * Remove a listener on this key
- * @public
- */
-Model.prototype.$off = function(eventName, opts, listener) {
-  if (!_.contains(LOCAL_EVENTS, eventName)) {
-    return this.$$key.off(eventName, opts, listener);
-  }
-
-  // Overloaded method, opts = listener
-  this.$$emitter.off(eventName, opts);
-};
-
-});
-require.register("goangular/lib/util/normalize.js", function(exports, require, module){
-/* jshint browser:true */
-/* global module */
-
-/**
- * @fileOverview
- *
- * This file contains the normalize function, responsible for preparing a remote
- * object to be merged into it's local counterpart
- */
-
-'use strict';
-
-/**
- * Normalizes the data returned from a event handler to get around the bug that
- * the handler does not set the full mutated object it just returns the
- * immediate value.
- *
- * Therefore, rebuild the object so it can cleanly be merged!
- *
- * @param {*} value the value returned to the handler
- * @param {Object} context the context returned to the handler
- */
-module.exports = function normalize(value, context) {
-
-  if (!context.currentKey) {
-    throw new Error('An invalid context was provided during normalization.');
-  }
-
-  // Build up the value until the key and the curPath are the same, then we've
-  // normalized the data properly.
-  var segment;
-  var newValue;
-  var i;
-
-  // Get the originating key path
-  var curPath = (context.addedKey) ? context.addedKey : context.key;
-
-  while (curPath !== context.currentKey) {
-
-    // Get the trailing path segment
-    i = curPath.lastIndexOf('/');
-    segment = curPath.slice(curPath.lastIndexOf('/'));
-    segment = segment.replace('/','');
-
-    newValue = {};
-    newValue[segment] = value;
-    value = newValue;
-
-    curPath = curPath.slice(0, i);
-  }
-
-  return value;
-};
-
-});
-require.register("goangular/lib/util/args.js", function(exports, require, module){
-/**
-The MIT License (MIT)
-
-Copyright (c) 2013-2014, OMG Life Ltd
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
-
-var Args = (function() {
-
-  "use strict";
-
-  var _extractSchemeEl = function(rawSchemeEl) {
-    var schemeEl = {};
-    schemeEl.defValue = undefined;
-    schemeEl.typeValue = undefined;
-    schemeEl.customCheck = undefined;
-    for (var name in rawSchemeEl) {
-      if (!rawSchemeEl.hasOwnProperty(name)) continue;
-        if (name === "_default") {
-          schemeEl.defValue = rawSchemeEl[name];
-        } else if (name === "_type") {
-          schemeEl.typeValue = rawSchemeEl[name];
-        } else if (name === "_check") {
-          schemeEl.customCheck = rawSchemeEl[name];
-        } else {
-          schemeEl.sname = name;
-        }
-    }
-    schemeEl.sarg = rawSchemeEl[schemeEl.sname];
-    return schemeEl;
-  };
-
-  var _typeMatches = function(arg, schemeEl) {
-    if ((schemeEl.sarg & Args.ANY) !== 0) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.STRING) !== 0 && typeof arg === "string") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.FUNCTION) !== 0 && typeof arg === "function") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.INT) !== 0 && (typeof arg === "number" && Math.floor(arg) === arg)) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.FLOAT) !== 0 && typeof arg === "number") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.ARRAY) !== 0 && (arg instanceof Array)) {
-      return true;
-    }
-    if (((schemeEl.sarg & Args.OBJECT) !== 0 || schemeEl.typeValue !== undefined) && (
-      typeof arg === "object" &&
-      (schemeEl.typeValue === undefined || (arg instanceof schemeEl.typeValue))
-    )) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.ARRAY_BUFFER) !== 0 && arg.toString().match(/ArrayBuffer/)) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.DATE) !== 0 && arg instanceof Date) {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.BOOL) !== 0 && typeof arg === "boolean") {
-      return true;
-    }
-    if ((schemeEl.sarg & Args.DOM_EL) !== 0 &&
-      (
-        (arg instanceof HTMLElement) ||
-        (window.$ !== undefined && arg instanceof window.$)
-      )
-    ) {
-      return true;
-    }
-    if (schemeEl.customCheck !== undefined && typeof schemeEl.customCheck === "function") {
-      if (schemeEl.customCheck(arg)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  var _isTypeSpecified = function(schemeEl) {
-    return (schemeEl.sarg & (Args.ANY | Args.STRING | Args.FUNCTION | Args.INT | Args.FLOAT | Args.OBJECT | Args.ARRAY_BUFFER | Args.DATE | Args.BOOL | Args.DOM_EL | Args.ARRAY)) != 0 || schemeEl.typeValue !== undefined;
-  };
-
-  var _getTypeString = function(schemeEl) {
-    var sarg = schemeEl.sarg;
-    var typeValue = schemeEl.typeValue;
-    var customCheck = schemeEl.customCheck;
-
-    if ((sarg & Args.STRING) !== 0 ) {
-      return "String";
-    }
-    if ((sarg & Args.FUNCTION) !== 0 ) {
-      return "Function";
-    }
-    if ((sarg & Args.INT) !== 0 ) {
-      return "Int";
-    }
-    if ((sarg & Args.FLOAT) !== 0 ) {
-      return "Float";
-    }
-    if ((sarg & Args.ARRAY) !== 0 ) {
-      return "Array";
-    }
-    if ((sarg & Args.OBJECT) !== 0) {
-      if (typeValue !== undefined) {
-        return "Object (" + typeValue.toString() + ")";
-      } else {
-        return "Object";
-      }
-    }
-    if ((sarg & Args.ARRAY_BUFFER) !== 0 ) {
-      return "Arry Buffer";
-    }
-    if ((sarg & Args.DATE) !== 0 ) {
-      return "Date";
-    }
-    if ((sarg & Args.BOOL) !== 0 ) {
-      return "Bool";
-    }
-    if ((sarg & Args.DOM_EL) !== 0 ) {
-      return "DOM Element";
-    }
-    if (customCheck !== undefined) {
-      return "[Custom checker]";
-    }
-    return "unknown";
-  };
-
-  var _checkNamedArgs = function(namedArgs, scheme, returns) {
-    var foundOne = false;
-    for (var s = 0  ; s < scheme.length ; s++) {
-      var found = (function(schemeEl) {
-        var argFound = false;
-        for (var name in namedArgs) {
-          var namedArg = namedArgs[name];
-          if (name === schemeEl.sname) {
-            if (_typeMatches(namedArg, schemeEl)) {
-              returns[name] = namedArg;
-              argFound = true;
-              break;
-            }
-          }
-        }
-        return argFound;
-      })(_extractSchemeEl(scheme[s]));
-      if (found) { scheme.splice(s--, 1); }
-      foundOne |= found;
-    }
-    return foundOne;
-  };
-
-  var _schemesMatch = function(schemeA, schemeB) {
-    if (!schemeA || !schemeB) { return false; }
-    return (schemeA.sarg & ~(Args.Optional | Args.Required)) === (schemeB.sarg & ~(Args.Optional | Args.Required)) &&
-         schemeA.typeValue === schemeB.typeValue && schemeA.customCheck === schemeB.customCheck;
-  };
-
-  var _isRequired = function(sarg) {
-    return !_isOptional(sarg);
-  };
-
-  var _isOptional = function(sarg) {
-    return (sarg & Args.Optional) !== 0;
-  };
-
-  /**
-   * Last argument may be a named argument object. This is decided in a non-greedy way, if
-   * there are any unmatched arguments after the normal process and the last argument is an
-   * object it is inspected for matching names.
-   *
-   * If the last argument is a named argument object and it could potentially be matched to
-   * a normal object in the schema the object is first used to try to match any remaining
-   * required args (including the object that it would match against). Only if there are no
-   * remaining required args or none of the remaining required args are matched will the
-   * last object arg match against a normal schema object.
-   *
-   * Runs of objects with the same type are matched greedily but if a required object is
-   * encountered in the schema after all objects of that type have been matched the previous
-   * matches are shifted right to cover the new required arg. Shifts can only happen from
-   * immediately preceding required args or optional args. If a previous required arg is
-   * matched but an optional arg seprates the new required arg from the old one only the
-   * optional arg in between can be shifted. The required arg and any preceding optional
-   * args are not shifted.
-   */
-  var Args = function(scheme, args) {
-    if (scheme === undefined) throw new Error("The scheme has not been passed.");
-    if (args === undefined) throw new Error("The arguments have not been passed.");
-
-    args = Array.prototype.slice.call(args,0);
-
-    var returns = {};
-    var err = undefined;
-
-    var runType = undefined;
-    var run = [];
-    var _addToRun = function(schemeEl) {
-      if (
-        !runType ||
-        !_schemesMatch(runType, schemeEl) ||
-        (_isRequired(runType.sarg) && _isOptional(schemeEl.sarg))
-      ) {
-        run = [];
-      }
-      if (run.length > 0 || _isOptional(schemeEl.sarg)) {
-        runType = schemeEl;
-        run.push(schemeEl);
-      }
-    };
-    var _shiftRun = function(schemeEl, r) {
-      if (r === undefined) r = run.length-1;
-      if (r < 0) return;
-      var lastMatch = run[r];
-      returns[schemeEl.sname] = returns[lastMatch.sname];
-      returns[lastMatch.sname] = undefined;
-      if ((lastMatch.sarg & Args.Optional) === 0) { // if the last in the run was not optional
-        _shiftRun(lastMatch, r-1);
-      }
-    };
-
-
-    var a, s;
-
-
-    // first let's extract any named args
-    if (typeof args[args.length-1] === "object") {
-      if (_checkNamedArgs(args[args.length-1], scheme, returns)) {
-        args.splice(args.length-1,1);
-      }
-    }
-
-
-    for (a = 0, s = 0; s < scheme.length ; s++) {
-      a = (function(a,s) {
-
-        var arg = args[a];
-
-        // argument group
-        if (scheme[s] instanceof Array) {
-          if (arg === null || arg === undefined) {
-            err = "Argument " + a + " is null or undefined but it must be not null.";
-            return a;
-          } else {
-            var group = scheme[s];
-            var retName = undefined;
-            for (var g = 0 ; g < group.length ; g++) {
-              var schemeEl = _extractSchemeEl(group[g]);
-              if (_typeMatches(arg, schemeEl)) {
-                retName = schemeEl.sname;
-              }
-            }
-            if (retName === undefined) {
-              err = "Argument " + a + " should be one of: ";
-              for (var g = 0 ; g < group.length ; g++) {
-                var schemeEl = _extractSchemeEl(group[g]);
-                err += _getTypeString(schemeEl) + ", ";
-              }
-              err += "but it was type " + (typeof arg) + " with value " + arg + ".";
-              return a;
-            } else {
-              returns[retName] = arg;
-              return a+1;
-            }
-          }
-        } else {
-          var schemeEl = _extractSchemeEl(scheme[s]);
-
-          // optional arg
-
-          if ((schemeEl.sarg & Args.Optional) !== 0) {
-            // check if this arg matches the next schema slot
-            if ( arg === null || arg === undefined) {
-              if (schemeEl.defValue !== undefined)  {
-                returns[schemeEl.sname] = schemeEl.defValue;
-              } else {
-                returns[schemeEl.sname] = arg;
-              }
-              return a+1; // if the arg is null or undefined it will fill a slot, but may be replace by the default value
-            } else if (_typeMatches(arg, schemeEl)) {
-              returns[schemeEl.sname] = arg;
-              _addToRun(schemeEl);
-              return a+1;
-            } else if (schemeEl.defValue !== undefined)  {
-              returns[schemeEl.sname] = schemeEl.defValue;
-              return a;
-            }
-          }
-
-          // manadatory arg
-          else { //if ((schemeEl.sarg & Args.NotNull) !== 0) {
-            if (arg === null || arg === undefined) {
-              if (_isTypeSpecified(schemeEl) && _schemesMatch(schemeEl, runType)) {
-                _shiftRun(schemeEl);
-                _addToRun(schemeEl);
-                return a;
-              } else {
-                err = "Argument " + a + " ("+schemeEl.sname+") is null or undefined but it must be not null.";
-                return a;
-              }
-            }
-            else if (!_typeMatches(arg, schemeEl)) {
-              if (_isTypeSpecified(schemeEl)) {
-                if (_schemesMatch(schemeEl, runType)) {
-                  _shiftRun(schemeEl);
-                  _addToRun(schemeEl);
-                  return a+1;
-                } else {
-                  err = "Argument " + a + " ("+schemeEl.sname+") should be type "+_getTypeString(schemeEl)+", but it was type " + (typeof arg) + " with value " + arg + ".";
-                }
-              } else if (schemeEl.customCheck !== undefined) {
-                var funcString = schemeEl.customCheck.toString();
-                if (funcString.length > 50) {
-                  funcString = funcString.substr(0, 40) + "..." + funcString.substr(funcString.length-10);
-                }
-                err = "Argument " + a + " ("+schemeEl.sname+") does not pass the custom check ("+funcString+").";
-              } else {
-                err = "Argument " + a + " ("+schemeEl.sname+") has no valid type specified.";
-              }
-              return a;
-            } else {
-              returns[schemeEl.sname] = arg;
-              _addToRun(schemeEl);
-              return a+1;
-            }
-          }
-
-        }
-
-        return a;
-      })(a,s);
-      if (err) {
-        break;
-      }
-    }
-
-    if (err) {
-      throw new Error(err);
-    }
-
-    return returns;
-  };
-
-  Args.ANY    = 0x1;
-  Args.STRING   = 0x1 << 1;
-  Args.FUNCTION   = 0x1 << 2;
-  Args.INT    = 0x1 << 3;
-  Args.FLOAT    = 0x1 << 4;
-  Args.ARRAY_BUFFER = 0x1 << 5;
-  Args.OBJECT   = 0x1 << 6;
-  Args.DATE   = 0x1 << 7;
-  Args.BOOL   = 0x1 << 8;
-  Args.DOM_EL   = 0x1 << 9;
-  Args.ARRAY    = 0x1 << 10;
-
-
-  Args.Optional   = 0x1 << 11;
-  Args.NotNull    =
-  Args.Required   = 0x1 << 12;
-
-  return Args;
-})();
-
-
-try {
-  module.exports = Args;
-} catch (e) {}
-
-});
-
-
-
-require.alias("component-emitter/index.js", "goangular/deps/emitter/index.js");
-require.alias("component-emitter/index.js", "emitter/index.js");
-require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
-
-require.alias("caolan-async/lib/async.js", "goangular/deps/async/lib/async.js");
-require.alias("caolan-async/lib/async.js", "goangular/deps/async/index.js");
-require.alias("caolan-async/lib/async.js", "async/index.js");
-require.alias("caolan-async/lib/async.js", "caolan-async/index.js");
-require.alias("lodash-lodash/index.js", "goangular/deps/lodash/index.js");
-require.alias("lodash-lodash/dist/lodash.compat.js", "goangular/deps/lodash/dist/lodash.compat.js");
-require.alias("lodash-lodash/index.js", "lodash/index.js");
-
-require.alias("goangular/index.js", "goangular/index.js");if (typeof exports == "object") {
-  module.exports = require("goangular");
-} else if (typeof define == "function" && define.amd) {
-  define(function(){ return require("goangular"); });
-} else {
-  this[""];this.goinstant = this.goinstant || {};this.goinstant.integrations = this.goinstant.integrations || {};this.goinstant.integrations["GoAngular"] = require("goangular");
-}})();
+}).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}]},{},[1])

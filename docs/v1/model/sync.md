@@ -4,9 +4,11 @@
 Stability: 3 - Stable
 ```
 
-Retrieves the current value of the key associated with this model and monitors it for changes, keeping the model in sync with the  associated key.  ***Note: changes made directly to the object do not persist back to the key.***
+Retrieves the current value of the key associated with this model and monitors
+it for changes, keeping the model in sync with the  associated key.
+***Note: changes made directly to the object do not persist back to the key.***
 
-### TL;DR Example
+### Example
 
 Synchronize a collection of todos:
 
@@ -23,6 +25,11 @@ angular.module('yourApp').controller('aCtrl', function($scope, $goKey) {
 ## Methods
 
 - ###### **model.$sync()**
+
+| [GoAngular Key Model](./model/key_model/index.md) |
+| :--|
+| Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+| The already existing model that had `$sync` called on it. |
 
 ## Example
 

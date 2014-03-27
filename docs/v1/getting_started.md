@@ -89,7 +89,7 @@ The `$goKey` method takes a string, representing the location (or key) within yo
 }
 ```
 
-`$goKey` always returns a [Model](./model/index.md), an encapsulation for your application’s data. Each model is associated with a specific location in your data structure and includes methods for manipulating and managing your data.
+`$goKey` always returns a [Key Model](./model/key_model/index.md), an encapsulation for your application’s data. Each model is associated with a specific location in your data structure and includes methods for manipulating and managing your data.
 
 Let's use `$goKey` to create a model associated with our collection of messages and place it on `$scope`:
 
@@ -171,6 +171,7 @@ Let's see it all tied together:
   <form ng-submit="sendMessage()">
     <input ng-model="author">
     <input ng-model="messageContent">
+    <button type="submit">Send</button>
   </form>
 
   <!-- Dependencies -->

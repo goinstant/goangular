@@ -1,4 +1,4 @@
-# $goConnnection
+# $goConnection
 
 ```
 Stability: 3 - Stable
@@ -13,7 +13,9 @@ connection!
 1. [Code Example](#code-example)
 2. [$goConnection#$connect](#$goconnection#$connect)
 3. [$goConnection#$set](#$goconnection#$set)
-4. [$goConnection#$ready](#$goconnection#$ready)
+4. [$goConnection#$loginUrl](#$goconnection#$loginUrl)
+5. [$goConnection#$logoutUrl](#$goconnection#$logoutUrl)
+6. [$goConnection#$ready](#$goconnection#$ready)
 
 ## Code Example
 
@@ -90,7 +92,7 @@ JavaScript libraries.
 In some cases, you will need to defer connecting to GoInstant until after Angular's
 configuration stage, in these situations you'll use `$connect`.
 
-`$connect` accepts two parameters a `connectUrl` and an `optionsObject`.  The object has two optional
+`$connect` accepts two parameters a `connectUrl` and an `optionsObject`. The object has two optional
 properties: `user` which can be a [JWT](../guides/users_and_authentication.md)
 or a set of default user properties and [room](../javascript_api/rooms/index.md), which is the name of the room you wish
 to use.  By default you join the 'Lobby'.
@@ -180,6 +182,129 @@ angular.module('yourApp', ['goangular'])
   .config(function($goConnectionProvider) {
     $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
   });
+```
+
+## $goConnection#$loginUrl
+
+### Description
+
+Generates login URLs for placing into a hyperlink, or redirecting the user.
+The generated loginUrl(s) are available on the `$goConnection#loginProviders`
+property. Each provider login generated will be available at
+`loginProviders#providerName` as an array. Each provider in the array will have
+a name and url property for creating appropriate links.
+
+We can determine if the currently connected user is a guest user or not based on
+the value of `goConnection#$isGuest`. The property `$goConnection#isGuest` will
+be `null` before a connection is established, `true` if connected as a GoInstant
+[guest user](../security_and_auth/guides/users_and_authentication.html#what-about-unauthenticated-users?)
+, or `false` if connected as an authenticated user.
+
+See the [GoInstant Authentication API](../auth_api/index.html) for more information.
+
+### Methods
+
+- ###### **$goConnection.$loginUrl()**
+- ###### **$goConnection.$loginUrl(providerName)**
+- ###### **$goConnection.$loginUrl(providerName, returnTo)**
+
+### Parameters
+
+| providerName |
+|:---|
+| Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String), [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) |
+| The name(s) of the [Identity Provider(s)](../auth_api/providers.html) to have the user log in with. Defaults to null, which will prompt the user to select from a list of enabled providers. |
+
+| returnTo |
+|:---|
+| Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) |
+| URL to return to once the user is authenticated. Defaults to `window.location.href`. |
+
+### Example
+
+Generate login links with separate calls to `$loginUrl`:
+
+```js
+angular.module('yourApp', ['goangular'])
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+    $goConnectionProvider.$loginUrl(null);
+    $goConnectionProvider.$loginUrl('Google');
+    $goConnectionProvider.$loginUrl('Twitter');
+  })
+  .controller('authCtrl', function($goConnection) {
+    $scope.conn = $goConnection;
+  });
+```
+
+```html
+<div ng-controller="authCtrl">
+  <ul ng-show=conn.isGuest>
+    <li ng-repeat="provider in conn.loginProviders"><a href="{{provider.url}}">{{provider.name}}</a></li>
+  </ul>
+</div>
+```
+
+Generate GitHub and Twitter login links:
+
+```js
+angular.module('yourApp', ['goangular'])
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+    $goConnectionProvider.$loginUrl(['GitHub', 'Twitter']);
+  })
+  .controller('authCtrl', function($goConnection) {
+    $scope.conn = $goConnection;
+  });
+```
+
+```html
+<div ng-controller="authCtrl">
+  <ul ng-show=conn.isGuest>
+    <li ng-repeat="provider in conn.loginProviders"><a href="{{provider.url}}">{{provider.name}}</a></li>
+  </ul>
+</div>
+```
+
+## $goConnection#$logoutUrl
+
+### Description
+
+Generates a logout URL for placing into a hyperlink, or redirecting the user.
+The generated logoutUrl is available on the `$goConnection#logoutUrl` property.
+
+Once logged out and re-connected the `$goConnection#isGuest` property will be
+`false`.
+
+### Methods
+
+- ###### **$goConnection.$logoutUrl()**
+- ###### **$goConnection.$logoutUrl(returnTo)**
+
+### Parameters
+
+| returnTo |
+|:---|
+| Type: [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) |
+| URL to return to once the user is logged out. Defaults to `window.location.href`. |
+
+### Example
+
+```js
+angular.module('yourApp', ['goangular'])
+  .config(function($goConnectionProvider) {
+    $goConnectionProvider.$set('https://goinstant.net/YOURACCOUNT/YOURAPP');
+    $goConnectionProvider.$logoutUrl();
+  })
+  .controller('authCtrl', function($goConnection) {
+    $scope.conn = $goConnection;
+  });
+```
+
+```html
+<div ng-controller="authCtrl">
+  <a ng-hide=conn.isGuest href="{{conn.logoutUrl}}">Log out</a>
+</div>
 ```
 
 ## $goConnection#$ready

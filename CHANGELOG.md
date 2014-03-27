@@ -1,3 +1,11 @@
+<a name="v3.3.0"></a>
+### v3.3.0 (2014-03-27)
+
+#### Features
+
+* **goUsers:** Implements the goUsers feature ([d93f5b3c932](https://github.com/goinstant/goangular/commit/d93f5b3c932f130392735843a566c640820b61af))
+* **keyFilter:** Implements the keyFilter ([7d542ccd64](https://github.com/goinstant/goangular/commit/7d542ccd648331aa8a2ca5fb2325e093ababbc59))
+
 <a name="v3.2.2"></a>
 ### v3.2.2 (2014-02-14)
 

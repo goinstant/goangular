@@ -4,8 +4,6 @@
     <title>GoInstant GoAngular Component Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <script>document.write('<script src="http://' + (location.host || 'localhost').split(':')[0] + ':35729/livereload.js?snipver=1"></' + 'script>')</script>
-
     <!-- CONFIG -->
     <script src="../config/config.js"></script>
 
@@ -37,29 +35,50 @@
       #killTheGong {
         margin-left: 50px;
       }
+
+      .all-users {
+        font-size: 13px;
+      }
+
+      img {
+        width: 50px;
+        height: 50px;
+      }
     </style>
   </head>
   <body>
     <div class="container" ng-controller="sweetController">
-      <!-- <button type="button" id="killTheGong">Kill Go-ng Binding</button> -->
-        <div class="col-md-6">
-          <h5>description: {{description}}</h5>
-          <div class="input-group">
-            <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control">
-            <span class="input-group-btn">
-              <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
+      <div class="col-md-6">
+        <h5 ng-show="last">user: {{last.user}} - description: {{last.description}}</h5>
+        <div class="input-group">
+          <input enter="addTodo()" ng-model="newTodo" type="text" class="form-control" />
+          <span class="input-group-btn">
+            <button enter="addTodo()" ng-click="addTodo()" class="btn btn-default" type="button">Add Todo</button>
             </span>
           </div><!-- /input-group -->
           <br>
           <ul class="list-group">
-            <li class="list-group-item" ng-repeat="(key, todo) in todos">{{todo.description}}&nbsp;<button ng-click="remove(key)" class="pull-right btn btn-xs btn-danger">x</button></li>
+            <li class="list-group-item" ng-repeat="todo in todos | keyFilter | limitTo:10">
+              {{todo.description}}
+              <button ng-click="remove(todo.$name)" class="pull-right btn btn-xs btn-danger">x</button>
+            </li>
           </ul>
         </div><!-- /.col-lg-6 -->
         <div class="col-md-6">
           <div class="jumbotron">
             <h1>GoAngular Todo</h1>
-            <br>
-            <h5>Current User: <input type="text" ng-model="currentUser.displayName"/></h5>
+            <h5>Current User: <input type="text" ng-model="users.$local.displayName"/></h5>
+            <img ng-show="users.$local.avatarUrl" ng-src="{{users.$local.avatarUrl}}">
+          <div ng-hide="conn.isGuest === null">
+              <ul ng-show="conn.isGuest">
+                <li ng-repeat="provider in conn.loginProviders"><a href={{provider.url}}>{{provider.name}}</a></li>
+              </ul>
+              <a ng-show="!conn.isGuest" href="{{conn.logoutUrl}}">Logout</a>
+            </div>
+            <h3>All Users</h3>
+            <ul class="all-users">
+              <li ng-repeat="user in users">{{user.displayName}} - {{ user.id }}</li>
+            </ul>
           </div>
         </div>
         <!-- <p>{{ text }}</p> -->

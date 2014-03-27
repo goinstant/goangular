@@ -4,11 +4,19 @@
 Stability: 3 - Stable
 ```
 
-Returns a new object, sans properties prefixed with `$`.
+Returns a new object, sans properties prefixed with `$`. Used to isolate the
+data from the [GoAngular model](./index.md).
 
 ## Methods
 
 - ###### **model.$omit()**
+
+## Returns
+
+| omitObject |
+| :--|
+| Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
+| A new object, sans properties prefixed with `$`. |
 
 ## Example
 

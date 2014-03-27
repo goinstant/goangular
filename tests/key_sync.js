@@ -1,16 +1,16 @@
 /* jshint browser:true */
+/* global require */
 
 describe('GoAngular.keySync', function() {
 
   'use strict';
 
-  var require = window.require;
-  var assert = window.assert;
-  var sinon = window.sinon;
-  var _ = window._;
+  var _ = require('lodash');
+  var assert = require('gi-assert');
+  var sinon = require('sinon');
 
   /* Component Dependencies */
-  var keySync = require('goangular/lib/key_sync');
+  var keySync = require('../lib/key_sync_factory');
 
   var sandbox;
   var fakeKey;
@@ -163,6 +163,28 @@ describe('GoAngular.keySync', function() {
           value: ['foo', 'bar'],
           context: { key: '/currentKey', currentKey: '/currentKey' },
           expect: _.merge(_.cloneDeep(model), { 0: 'foo', 1: 'bar' })
+        },
+        {
+          desc: 'replaces the models value on set',
+          model: { foo: 'bar' },
+          value: { bar: 'foo' },
+          context: {
+            command: 'SET',
+            key: '/currentKey',
+            currentKey: '/currentKey'
+          },
+          expect: { bar: 'foo' }
+        },
+        {
+          desc: 'clears dead branches on set',
+          model: { foo: { bar: 'foo', ding: 'dong' } },
+          value: { bar: { bar: 'foo' } },
+          context: {
+            command: 'SET',
+            key: '/currentKey',
+            currentKey: '/currentKey'
+          },
+          expect: { bar: { bar: 'foo' } }
         },
         {
           desc: 'will add a child primitive',

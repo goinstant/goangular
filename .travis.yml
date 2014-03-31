@@ -3,7 +3,36 @@ node_js:
 - '0.10'
 before_script:
 - npm install -g gulp
+- source deploy/tags.sh
+before_deploy:
+- gulp build
+deploy:
+- provider: s3
+  access_key_id: $AWS_S3_ID
+  secret_access_key: $AWS_S3_SECRET
+  bucket: cdn.platform-staging.goinstant.org
+  local-dir: dist
+  upload-dir: integrations/goangular/latest
+  on:
+    all_branches: true
+    repo: goinstant/goangular
+    condition:
+    - $IS_TAG != 0
+    - $IS_LATEST != 0
+- provider: s3
+  access_key_id: $AWS_S3_ID
+  secret_access_key: $AWS_S3_SECRET
+  bucket: cdn.platform-staging.goinstant.org
+  local-dir: dist
+  upload-dir: integrations/goangular/$TRAVIS_BRANCH
+  on:
+    all_branches: true
+    repo: goinstant/goangular
+    condition:
+    - $IS_TAG != 0
+after_deploy:
+- echo "deployed $TRAVIS_BRANCH"
 env:
   global:
-  - secure: FtRPdbkLCmXgQdOn03hunzpa4GLJMvLweLLi9qC3Su8oSCnBVcGyScde0z67tNeEuQjA1mQ52DsKaEZG8n++i8l9ZcTVSgrjmRQ6u+YH23hH74mqOPZOiJJyW7nMmJy8PSa9C3/5ZoMlTwiyXy6plDCFQn+qTpj9ohlzvY7RWX0=
-  - secure: Pf/V38ggv1wg81IJYAgczTBGIteajbhugrlUCDlGVy5VomNeHMNG1+cuAL3o0VysO/3j71dfL+06DAegnwGgnZokSsyhV8wrpyJZ6/UGhCviLzLTzg053vGBu6vZzu+GIUS0z+RS3hwu4G+Q5cC/RtrQfx2AbX9rfj/T64pvItc=
+  - secure: C3ns4bIP1h9PzP127HeXTdIFWLshNj6CQENyT1BUWxmRFYfRHWQHTLXhYtw9Clv42L+kehoEA6Lak4hyNQXa0J26d4skum0YHVycIoS90bE96TN5I3NYSTWJI61lou0cl+D1kByrTIqr1jZxomGNGF+xWmxcwaXIwTntegPPwnQ=
+  - secure: mswog/W9YCauQbjUA9FCjwP/WkH3mV5QPPcQHOG4CgaT70UXeYeKJPol+oNimBe4jzmsrmd8emsZHvD2sW2pIbrX9v1ZIUZwUH++R1z+EiqvP31sed/CcpEiUH5s1dMnQ/lTFmvTP0ILBFFe7X1NYmicT11rhrvGRGV55Ps37Rw=

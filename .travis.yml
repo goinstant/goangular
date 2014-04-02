@@ -10,7 +10,7 @@ deploy:
 - provider: s3
   access_key_id: $AWS_S3_ID
   secret_access_key: $AWS_S3_SECRET
-  bucket: cdn.platform-staging.goinstant.org
+  bucket: cdn.goinstant.net
   local-dir: dist
   upload-dir: integrations/goangular/latest
   on:
@@ -22,7 +22,7 @@ deploy:
 - provider: s3
   access_key_id: $AWS_S3_ID
   secret_access_key: $AWS_S3_SECRET
-  bucket: cdn.platform-staging.goinstant.org
+  bucket: cdn.goinstant.net
   local-dir: dist
   upload-dir: integrations/goangular/$TRAVIS_BRANCH
   on:

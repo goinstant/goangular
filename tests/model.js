@@ -156,12 +156,6 @@ describe('GoAngular.Model', function() {
     });
 
     describe('$off', function() {
-      it('throws on invalid eventName', function() {
-        assert.exception(function() {
-          model.$off('fakeEvent', sinon.stub());
-        }, 'Invalid event name: fakeEvent');
-      });
-
       it('accepts valid events', function() {
         sinon.spy(model.$$emitter, 'off');
 
@@ -294,30 +288,6 @@ describe('GoAngular.Model', function() {
         sinon.assert.calledWith(fakeRoom.on, 'join', fakeListener);
         sinon.assert.calledWith(fakeRoom.on, 'leave', fakeOpts, fakeListener);
       });
-
-      it('adds bubble:true if opts passed', function() {
-        var fakeListener = sinon.stub();
-        var fakeOpts = {
-          local:true
-        };
-
-        var expected = _.clone(fakeOpts);
-        expected.bubble = true;
-
-        model.$on('set', fakeOpts, fakeListener);
-
-        sinon.assert.calledOnce(onSpy);
-        sinon.assert.calledWith(onSpy, 'set', expected, fakeListener);
-      });
-
-      it('does not add bubble:true if opts is function', function() {
-        var fakeListener = sinon.stub();
-
-        model.$on('error', fakeListener);
-
-        sinon.assert.calledOnce(onSpy);
-        sinon.assert.calledWith(onSpy, 'error', fakeListener);
-      });
     });
 
     describe('$off', function() {
@@ -340,30 +310,6 @@ describe('GoAngular.Model', function() {
         sinon.assert.calledWith(fakeRoom.off, 'join', fakeListener);
         sinon.assert.calledWith(fakeRoom.off, 'leave', fakeOpts,
                                 fakeListener);
-      });
-
-      it('adds bubble:true if opts passed', function() {
-        var fakeListener = sinon.stub();
-        var fakeOpts = {
-          local:true
-        };
-
-        var expected = _.clone(fakeOpts);
-        expected.bubble = true;
-
-        model.$off('set', fakeOpts, fakeListener);
-
-        sinon.assert.calledOnce(offSpy);
-        sinon.assert.calledWith(offSpy, 'set', expected, fakeListener);
-      });
-
-      it('does not add bubble:true if opts is function', function() {
-        var fakeListener = sinon.stub();
-
-        model.$off('error', fakeListener);
-
-        sinon.assert.calledOnce(offSpy);
-        sinon.assert.calledWith(offSpy, 'error', fakeListener);
       });
     });
   });

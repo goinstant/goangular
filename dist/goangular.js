@@ -519,24 +519,28 @@ KeyModel.prototype.$remove = function(opts) {
  * @extends Model#$on
  */
 KeyModel.prototype.$on = function(eventName, opts, listener) {
-  if (!_.contains(KEY_EVENTS, eventName)) {
-    return Model.prototype.$on.call(this, eventName, opts || listener);
+  if (_.contains(KEY_EVENTS, eventName)) {
+    return this.$$key.on(eventName, opts, listener);
   }
 
-  this.$$key.on(eventName, opts, listener);
+  Model.prototype.$on.call(this, eventName, opts);
 };
 
 /**
- * Remove a listener on this key
+ * Remove a listener on this key. If the eventName is empty call off on both the
+ * key and the model (Model.prototype.off).
  * @public
  * @extends Model#$off
  */
 KeyModel.prototype.$off = function(eventName, opts, listener) {
-  if (!_.contains(KEY_EVENTS, eventName)) {
-    return Model.prototype.$on.call(this, eventName, opts || listener);
+  if (_.contains(KEY_EVENTS, eventName)) {
+    return this.$$key.off(eventName, opts, listener);
+
+  } else if (!eventName) {
+    this.$$key.off(eventName, opts, listener);
   }
 
-  this.$$key.off(eventName, opts, listener);
+  Model.prototype.$off.call(this, eventName, opts);
 };
 
 },{"./model":9,"./util/inherit":16,"lodash":20}],7:[function(require,module,exports){
@@ -907,10 +911,6 @@ Model.prototype.$on = function(eventName, listener) {
  * @public
  */
 Model.prototype.$off = function(eventName, listener) {
-  if (!_.contains(LOCAL_EVENTS, eventName)) {
-    throw new Error('Invalid event name: ' + eventName);
-  }
-
   this.$$emitter.off(eventName, listener);
 };
 
@@ -1225,41 +1225,33 @@ UsersModel.prototype.$self = function(sync) {
 UsersModel.prototype.$getUser = KeyModel.prototype.$key;
 
 /**
- * Bind a listener to events on this key
+ * Bind a listener to events on this room
  * @public
- * @extends Model#on
+ * @extends KeyModel#on
  */
 UsersModel.prototype.$on = function(eventName, opts, listener) {
-  if (eventName === SELF) {
-    return this.$$emitter.on(eventName, opts || listener);
+  if (_.contains(ROOM_EVENTS, eventName)) {
+    return this.$$key.room().on(eventName, opts, listener);
   }
 
-  if (!_.contains(ROOM_EVENTS, eventName)) {
-    if (!_.isFunction(opts)) {
-      _.extend(opts, { bubble: true });
-    }
-
-    return KeyModel.prototype.$on.call(this, eventName, opts, listener);
-  }
-
-  this.$$key.room().on(eventName, opts, listener);
+  KeyModel.prototype.$on.call(this, eventName, opts, listener);
 };
 
 /**
- * Remove a listener on this key
+ * Remove a listener on this room. If the eventName is empty, call off on both
+ * the room and key model (KeyModel.prototype.off).
  * @public
- * @extends Model#off
+ * @extends KeyModel#off
  */
 UsersModel.prototype.$off = function(eventName, opts, listener) {
-  if (!_.contains(ROOM_EVENTS, eventName)) {
-    if (!_.isFunction(opts)) {
-      _.extend(opts, { bubble: true });
-    }
+  if (_.contains(ROOM_EVENTS, eventName)) {
+    return this.$$key.room().off(eventName, opts, listener);
 
-    return KeyModel.prototype.$off.call(this, eventName, opts, listener);
+  } else if (!eventName) {
+    this.$$key.room().off(eventName, opts, listener);
   }
 
-  this.$$key.room().off(eventName, opts, listener);
+  KeyModel.prototype.$off.call(this, eventName, opts, listener);
 };
 
 },{"./key_model":6,"./model":9,"./util/inherit":16,"lodash":20}],14:[function(require,module,exports){

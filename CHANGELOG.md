@@ -1,5 +1,16 @@
-<a name="v3.3.0"></a>
-### v3.3.0 (2014-03-27)
+<a name="v3.3.5"></a>
+### v3.3.5 (2014-04-11)
+
+#### Bug Fixes
+
+* **off** Allows no eventName ([74de512dc7](https://github.com/goinstant/goangular/commit/74de512dc7f40fc23c298e51fe0f9d748ec370dc))
+
+#### Chores
+
+* **key guide** Adds a key and filter guide ([fbd9472cb7](https://github.com/goinstant/goangular/commit/fbd9472cb7dc892f7c382de259b4dff2970394d4))
+
+<a name="v3.3.4"></a>
+### v3.3.4 (2014-03-27)
 
 #### Features
 

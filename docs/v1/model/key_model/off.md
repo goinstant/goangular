@@ -39,7 +39,7 @@ this model or from the model itself.
 | optionsObject |
 |:---|
 | Type: [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
-| An object with three properties, `listener`, `local` and `bubble`, that determine how this action behaves. |
+| An object with two properties, `local` and `bubble`, that determines how this action behaves. |
 | - `local` [**default: false**] is a boolean where, if true, the listener will be triggered for local events. |
 | - `bubble` [**default: false**] is a boolean where, if true, the listener will bubble events. |
 

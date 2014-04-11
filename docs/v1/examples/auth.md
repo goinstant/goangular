@@ -7,6 +7,17 @@ provider and the [$goUsers](../users.md) service.
 
 The full source for this example can be found [here](https://github.com/colinmacdonald/goangular-auth-example).
 
+## Table of Contents
+
+1. [Install](#1.-install)
+2. [Set up view](#2.-set-up-view)
+3. [Configure GoAngular and set up routes](#3.-configure-goangular-and-set-up-routes)
+4. [Permissions service](#4.-permissions-service)
+5. [Main controller](#5.-main-controller)
+6. [Access directive](#6.-access-directive)
+7. [Set up menu and login buttons](#7.-set-up-menu-and-login-buttons)
+8. [Views](#8.-views)
+
 ### 1. Install
 
 First things first, we include all of our dependencies.
@@ -234,7 +245,7 @@ app.directive('access', function($goConnection, permissions) {
 });
 ```
 
-### 7. Set up the menu and login buttons
+### 7. Set up menu and login buttons
 
 Time to get back to the view and put our new `access` directive to good use.
 
@@ -276,7 +287,7 @@ model using the `$local` property to display their name.
     </div>
 ```
 
-### 8. Add the views
+### 8. Views
 
 We defined our routes in **Step 3**, now lets add the corresponding views.
 
@@ -324,8 +335,13 @@ id, and email (if available).
 </div>
 ```
 
+### Conclusion
+
 That's it! We created an app that handles both authentication and user
 permissions without any back-end set up. To test the how the `/profile` route
 permissions work, try navigating to `/profile` directly in the browser. As a
 guest user the link to that view will not be displayed, instead you will be
 redirected to the `restricted` view.
+
+Using the concepts covered in this example you are now ready to start writing
+your own GoAngular app using [$goUsers](../users.md) and auth with [$goConnection](../connection.md).

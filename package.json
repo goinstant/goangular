@@ -44,7 +44,11 @@
     "jshint-stylish": "~0.1.5",
     "q": "^1.0.1",
     "gulp-uglify": "~0.2.1",
-    "gulp-conventional-changelog": "~0.1.2"
+    "gulp-conventional-changelog": "~0.1.2",
+    "node-hipchat": "0.4.5",
+    "github": "0.1.16",
+    "aws-sdk": "2.0.*",
+    "async": "0.7.0"
   },
   "goinstant": {
     "namespace": "integrations"

@@ -1,0 +1,7 @@
+{
+  "source": "dist",
+  "user": "goinstant",
+  "repo": "goangular",
+  "namespace": "integrations",
+  "bucket": "cdn.goinstant.net"
+}

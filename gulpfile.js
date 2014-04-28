@@ -29,7 +29,6 @@ gulp.task('lint', function() {
 });
 
 gulp.task('develop', ['clean'], function() {
-  console.log('ding')
   gulp.src(pathTo.entry)
     .pipe(plugins.browserify())
     .pipe(plugins.rename('build.js'))

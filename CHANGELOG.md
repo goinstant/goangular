@@ -1,3 +1,11 @@
+<a name="3.3.6"></a>
+### 3.3.6  (2014-04-28)
+
+#### Bug Fixes
+
+* **key_sync:** optimize model updates ([5817877a](git://github.com/goinstant/goangular.git/commit/5817877aa100f4aecb6a8f0c021d20423e34a668))
+
+
 <a name="v3.3.5"></a>
 ### v3.3.5 (2014-04-11)
 

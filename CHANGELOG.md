@@ -1,10 +1,20 @@
+<a name="3.3.7"></a>
+### 3.3.7  (2014-05-12)
+
+#### Bug Fixes
+
+* **goUsers** use room set in conn provider ([8994a95987](git://github.com/goinstant/goangular.git/commit/8994a959870187e3845d660f8803c10ad9ada5d5))
+
+#### Chores
+
+* **LICENSE** update year ([6be7046d94](git://github.com/goinstant/goangular.git/commit/6be7046d94b54981683c373953872ffbb35a96ca))
+
 <a name="3.3.6"></a>
 ### 3.3.6  (2014-04-28)
 
 #### Bug Fixes
 
 * **key_sync:** optimize model updates ([5817877a](git://github.com/goinstant/goangular.git/commit/5817877aa100f4aecb6a8f0c021d20423e34a668))
-
 
 <a name="v3.3.5"></a>
 ### v3.3.5 (2014-04-11)
